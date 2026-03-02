@@ -1,0 +1,91 @@
+import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
+
+export async function GET() {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get user's household
+    const { data: membership } = await supabase
+      .from('household_members')
+      .select('household_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (!membership) {
+      return NextResponse.json({ error: 'No household found' }, { status: 404 })
+    }
+
+    // Get calendars for the household
+    const { data: calendars, error } = await supabase
+      .from('calendars')
+      .select('*')
+      .eq('household_id', membership.household_id)
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching calendars:', error)
+      return NextResponse.json({ error: 'Failed to fetch calendars' }, { status: 500 })
+    }
+
+    return NextResponse.json({ calendars })
+  } catch (error) {
+    console.error('Error in calendars GET:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function POST(request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { name, color, type = 'manual' } = await request.json()
+
+    if (!name || name.trim().length === 0) {
+      return NextResponse.json({ error: 'Calendar name is required' }, { status: 400 })
+    }
+
+    // Get user's household
+    const { data: membership } = await supabase
+      .from('household_members')
+      .select('household_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (!membership) {
+      return NextResponse.json({ error: 'No household found' }, { status: 404 })
+    }
+
+    // Create calendar
+    const { data: calendar, error } = await supabase
+      .from('calendars')
+      .insert({
+        household_id: membership.household_id,
+        name: name.trim(),
+        color: color || '#3b82f6',
+        type: type,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating calendar:', error)
+      return NextResponse.json({ error: 'Failed to create calendar' }, { status: 500 })
+    }
+
+    return NextResponse.json({ calendar })
+  } catch (error) {
+    console.error('Error in calendars POST:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
