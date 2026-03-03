@@ -23,21 +23,27 @@ export function AddressAutocomplete({ value, onChange, label, placeholder = "Ent
       return
     }
 
-    // Load Google Maps script if not already loaded
-    if (!window.google?.maps) {
+    // Check if script is already loading or loaded
+    const existingScript = document.querySelector(`script[src*="maps.googleapis.com/maps/api/js"]`)
+    
+    if (!window.google?.maps && !existingScript) {
+      // Load Google Maps script only if not already loading/loaded
       const script = document.createElement('script')
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap&loading=async`
       script.async = true
       script.defer = true
+      script.id = 'google-maps-script'
       
       window.initMap = () => {
         initAutocomplete()
       }
       
       document.head.appendChild(script)
-    } else {
+    } else if (window.google?.maps) {
+      // Already loaded, initialize directly
       initAutocomplete()
     }
+    // If existingScript but not loaded yet, wait for the callback
 
     function initAutocomplete() {
       if (!inputRef.current || !window.google?.maps?.places) {

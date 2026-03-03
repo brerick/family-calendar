@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DateTimePicker, DatePicker } from '@/components/ui/date-time-picker';
@@ -26,9 +26,9 @@ export default function NewEventPage({ params }) {
   const [isAllDay, setIsAllDay] = useState(false);
 
   // Unwrap params
-  useState(() => {
+  useEffect(() => {
     params.then(p => setCalendarId(p.id));
-  }, []);
+  }, [params]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
