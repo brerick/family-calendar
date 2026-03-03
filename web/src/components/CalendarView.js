@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DateTimePicker, DatePicker } from "@/components/ui/date-time-picker"
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
-import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon } from 'lucide-react';
+import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, CopyIcon } from 'lucide-react';
 
 export default function CalendarView({ events, calendars }) {
   const calendarRef = useRef(null);
@@ -29,6 +29,10 @@ export default function CalendarView({ events, calendars }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  // Quick create modal state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createDate, setCreateDate] = useState(null);
   
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -165,8 +169,91 @@ export default function CalendarView({ events, calendars }) {
   };
 
   const handleDateClick = (info) => {
-    // When clicking on a date, could open create event modal
-    console.log('Date clicked:', info.dateStr);
+    // Open quick create modal with selected date
+    const clickedDate = new Date(info.dateStr);
+    clickedDate.setHours(9, 0, 0, 0); // Default to 9 AM
+    setCreateDate(clickedDate);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleEventDrop = async (info) => {
+    // Handle drag and drop rescheduling
+    try {
+      const eventData = {
+        title: info.event.title,
+        description: info.event.extendedProps.description,
+        start_time: info.event.start.toISOString(),
+        end_time: info.event.end ? info.event.end.toISOString() : info.event.start.toISOString(),
+        all_day: info.event.allDay,
+        location: info.event.extendedProps.location,
+      };
+
+      const res = await fetch(`/api/events/${info.event.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventData),
+      });
+
+      if (!res.ok) {
+        info.revert(); // Revert the drag if save fails
+        throw new Error('Failed to update event');
+      }
+
+      router.refresh();
+    } catch (error) {
+      console.error('Error updating event:', error);
+      alert('Failed to reschedule event');
+    }
+  };
+
+  const handleDuplicateEvent = async () => {
+    if (!selectedEvent) return;
+
+    setSaving(true);
+    try {
+      // Get the first visible calendar, or the event's calendar
+      const targetCalendar = calendars?.find(c => c.visible !== false);
+      if (!targetCalendar) {
+        alert('No calendar available');
+        return;
+      }
+
+      const newStartDate = new Date(selectedEvent.start);
+      newStartDate.setDate(newStartDate.getDate() + 7); // Duplicate 1 week later
+
+      const newEndDate = selectedEvent.end ? new Date(selectedEvent.end) : null;
+      if (newEndDate) {
+        newEndDate.setDate(newEndDate.getDate() + 7);
+      }
+
+      const eventData = {
+        calendar_id: selectedEvent.calendarId,
+        title: `${selectedEvent.title} (Copy)`,
+        description: selectedEvent.description,
+        start_time: newStartDate.toISOString(),
+        end_time: newEndDate ? newEndDate.toISOString() : newStartDate.toISOString(),
+        all_day: selectedEvent.allDay,
+        location: selectedEvent.location,
+      };
+
+      const res = await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventData),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to duplicate event');
+      }
+
+      setIsModalOpen(false);
+      router.refresh();
+    } catch (error) {
+      console.error('Error duplicating event:', error);
+      alert('Failed to duplicate event');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -216,7 +303,8 @@ export default function CalendarView({ events, calendars }) {
           events={calendarEvents}
           eventClick={handleEventClick}
           dateClick={handleDateClick}
-          editable={false}
+          eventDrop={handleEventDrop}
+          editable={true}
           selectable={true}
           selectMirror={true}
           dayMaxEvents={true}
@@ -227,6 +315,7 @@ export default function CalendarView({ events, calendars }) {
             minute: '2-digit',
             meridiem: 'short'
           }}
+          eventClassNames="cursor-move"
         />
       </div>
 
@@ -428,6 +517,14 @@ export default function CalendarView({ events, calendars }) {
                   Close
                 </Button>
                 <Button 
+                  variant="secondary"
+                  onClick={handleDuplicateEvent}
+                  disabled={saving}
+                >
+                  <CopyIcon className="h-4 w-4 mr-2" />
+                  Duplicate
+                </Button>
+                <Button 
                   variant="default"
                   onClick={handleEnterEditMode}
                 >
@@ -468,6 +565,98 @@ export default function CalendarView({ events, calendars }) {
               </>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Create Modal */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Quick Create Event</DialogTitle>
+            <DialogDescription>
+              {createDate && `Creating event for ${createDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const title = formData.get('title');
+            
+            if (!title || !createDate) {
+              alert('Please enter an event title');
+              return;
+            }
+
+            // Get the first visible calendar
+            const targetCalendar = calendars?.find(c => c.visible !== false);
+            if (!targetCalendar) {
+              alert('No calendar available');
+              return;
+            }
+
+            setSaving(true);
+            try {
+              const eventData = {
+                calendar_id: targetCalendar.id,
+                title,
+                description: '',
+                start_time: createDate.toISOString(),
+                end_time: new Date(createDate.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour later
+                all_day: false,
+                location: '',
+              };
+
+              const res = await fetch('/api/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(eventData),
+              });
+
+              if (!res.ok) {
+                throw new Error('Failed to create event');
+              }
+
+              setIsCreateModalOpen(false);
+              router.refresh();
+            } catch (error) {
+              console.error('Error creating event:', error);
+              alert('Failed to create event');
+            } finally {
+              setSaving(false);
+            }
+          }} className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="quick-title">
+                Event Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="quick-title"
+                name="title"
+                required
+                autoFocus
+                placeholder="Team Meeting"
+              />
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button 
+                variant="outline" 
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="default"
+                type="submit"
+                disabled={saving}
+              >
+                {saving ? 'Creating...' : 'Create Event'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>
