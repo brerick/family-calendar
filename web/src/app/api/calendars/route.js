@@ -49,10 +49,14 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { name, color, type = 'manual' } = await request.json()
+    const { name, color, type = 'manual', ics_url } = await request.json()
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json({ error: 'Calendar name is required' }, { status: 400 })
+    }
+
+    if (type === 'ical' && (!ics_url || ics_url.trim().length === 0)) {
+      return NextResponse.json({ error: 'ICS URL is required for iCal calendars' }, { status: 400 })
     }
 
     // Get user's household
@@ -67,20 +71,38 @@ export async function POST(request) {
     }
 
     // Create calendar
+    const calendarData = {
+      household_id: membership.household_id,
+      name: name.trim(),
+      color: color || '#3b82f6',
+      type: type,
+    }
+
+    if (type === 'ical') {
+      calendarData.ics_url = ics_url.trim()
+    }
+
     const { data: calendar, error } = await supabase
       .from('calendars')
-      .insert({
-        household_id: membership.household_id,
-        name: name.trim(),
-        color: color || '#3b82f6',
-        type: type,
-      })
+      .insert(calendarData)
       .select()
       .single()
 
     if (error) {
       console.error('Error creating calendar:', error)
       return NextResponse.json({ error: 'Failed to create calendar' }, { status: 500 })
+    }
+
+    // If it's an iCal calendar, trigger initial sync
+    if (type === 'ical') {
+      try {
+        await fetch(`${request.nextUrl.origin}/api/sync/ical/${calendar.id}`, {
+          method: 'POST',
+        })
+      } catch (syncError) {
+        console.error('Error triggering initial sync:', syncError)
+        // Don't fail the calendar creation if sync fails
+      }
     }
 
     return NextResponse.json({ calendar })

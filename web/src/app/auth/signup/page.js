@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
 export default function SignupPage() {
+  const searchParams = useSearchParams()
+  const inviteToken = searchParams.get('invite')
+  
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -51,7 +54,12 @@ export default function SignupPage() {
     // Wait a moment for session to be established
     await new Promise(resolve => setTimeout(resolve, 500))
     
-    router.push('/household/setup')
+    // If there's an invite token, redirect to setup page with it
+    if (inviteToken) {
+      router.push(`/household/setup?invite=${inviteToken}`)
+    } else {
+      router.push('/household/setup')
+    }
     router.refresh()
   }
 
@@ -60,11 +68,19 @@ export default function SignupPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
+            {inviteToken ? 'Create account to join household' : 'Create your account'}
           </h2>
+          {inviteToken && (
+            <p className="mt-2 text-center text-sm text-green-600 font-medium">
+              You've been invited! Sign up to accept the invitation.
+            </p>
+          )}
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{' '}
-            <Link href="/auth/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link 
+              href={inviteToken ? `/auth/login?invite=${inviteToken}` : '/auth/login'} 
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
               sign in to existing account
             </Link>
           </p>

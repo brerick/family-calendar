@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import CalendarList from '@/components/CalendarList'
+import CalendarView from '@/components/CalendarView'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -36,6 +37,16 @@ export default async function DashboardPage() {
     .select('*')
     .eq('household_id', membership.household_id)
     .order('created_at', { ascending: true })
+
+  // Fetch events
+  const { data: events } = await supabase
+    .from('events')
+    .select(`
+      *,
+      calendar:calendars(id, name, color, type)
+    `)
+    .in('calendar_id', calendars?.map(c => c.id) || [])
+    .order('start_time', { ascending: true })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -94,9 +105,8 @@ export default async function DashboardPage() {
           {/* Main calendar view */}
           <div className="lg:col-span-3">
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold mb-4">Calendar View</h2>
               {calendars && calendars.length > 0 ? (
-                <p className="text-gray-600">Calendar UI coming soon...</p>
+                <CalendarView events={events || []} calendars={calendars} />
               ) : (
                 <div className="text-center py-12">
                   <p className="text-gray-500 mb-4">No calendars yet</p>

@@ -55,7 +55,7 @@ create table if not exists calendars (
 create table if not exists events (
   id uuid primary key default gen_random_uuid(),
   calendar_id uuid references calendars(id) on delete cascade,
-  external_event_id text not null,
+  external_event_id text,  -- nullable for manual events
   instance_id text,
   title text,
   description text,
@@ -69,8 +69,10 @@ create table if not exists events (
   raw_payload jsonb
 );
 
+-- Unique constraint only for external events (where external_event_id is not null)
 create unique index if not exists uniq_event_external
-  on events (calendar_id, external_event_id);
+  on events (calendar_id, external_event_id)
+  where external_event_id is not null;
 
 create index if not exists idx_events_calendar_time
   on events (calendar_id, start_time);

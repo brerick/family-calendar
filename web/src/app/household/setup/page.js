@@ -1,16 +1,39 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function HouseholdSetupPage() {
-  const [mode, setMode] = useState('create') // 'create' or 'join'
+  const searchParams = useSearchParams()
+  const inviteParam = searchParams.get('invite')
+  
+  const [mode, setMode] = useState(inviteParam ? 'join' : 'create') // 'create' or 'join'
   const [householdName, setHouseholdName] = useState('')
-  const [inviteToken, setInviteToken] = useState('')
+  const [inviteToken, setInviteToken] = useState(inviteParam || '')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
+
+  // Check if user is authenticated when arriving with invite link
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (inviteParam) {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user) {
+          // Redirect to signup with invite token preserved
+          router.push(`/auth/signup?invite=${inviteParam}`)
+          return
+        }
+      }
+      setCheckingAuth(false)
+    }
+    
+    checkAuth()
+  }, [inviteParam, router])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -62,6 +85,16 @@ export default function HouseholdSetupPage() {
       setError(err.message)
       setLoading(false)
     }
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

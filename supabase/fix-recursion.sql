@@ -62,10 +62,21 @@ create policy "members_insert" on household_members
   with check (
     user_id = auth.uid()
     AND
-    exists (
-      select 1 from households
-      where households.id = household_members.household_id
-        and households.owner_user_id = auth.uid()
+    (
+      -- Owner adding members to their household
+      exists (
+        select 1 from households
+        where households.id = household_members.household_id
+          and households.owner_user_id = auth.uid()
+      )
+      OR
+      -- User joining via valid invite
+      exists (
+        select 1 from household_invites
+        where household_invites.household_id = household_members.household_id
+          and household_invites.redeemed_at is null
+          and (household_invites.expires_at is null or household_invites.expires_at > now())
+      )
     )
   );
 
