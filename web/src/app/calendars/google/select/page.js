@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function GoogleCalendarSelectPage() {
+function GoogleCalendarSelectForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('session')
@@ -204,5 +204,17 @@ export default function GoogleCalendarSelectPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function GoogleCalendarSelectPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    }>
+      <GoogleCalendarSelectForm />
+    </Suspense>
   )
 }
