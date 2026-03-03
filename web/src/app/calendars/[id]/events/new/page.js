@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { DateTimePicker, DatePicker } from '@/components/ui/date-time-picker';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 
 export default function NewEventPage({ params }) {
   const router = useRouter();
@@ -13,11 +17,12 @@ export default function NewEventPage({ params }) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    start_time: '',
-    end_time: '',
-    all_day: false,
     location: '',
   });
+  
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [isAllDay, setIsAllDay] = useState(false);
 
   // Unwrap params
   useState(() => {
@@ -26,6 +31,12 @@ export default function NewEventPage({ params }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!startDate) {
+      setError('Please select a start date');
+      return;
+    }
+    
     setLoading(true);
     setError('');
 
@@ -35,17 +46,9 @@ export default function NewEventPage({ params }) {
         calendar_id: calendarId,
         title: formData.title,
         description: formData.description,
-        start_time: formData.all_day 
-          ? new Date(formData.start_time + 'T00:00:00').toISOString()
-          : new Date(formData.start_time).toISOString(),
-        end_time: formData.end_time
-          ? (formData.all_day 
-              ? new Date(formData.end_time + 'T23:59:59').toISOString()
-              : new Date(formData.end_time).toISOString())
-          : (formData.all_day 
-              ? new Date(formData.start_time + 'T23:59:59').toISOString()
-              : new Date(formData.start_time).toISOString()),
-        all_day: formData.all_day,
+        start_time: startDate.toISOString(),
+        end_time: endDate ? endDate.toISOString() : startDate.toISOString(),
+        all_day: isAllDay,
         location: formData.location,
       };
 
@@ -91,101 +94,119 @@ export default function NewEventPage({ params }) {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Event Title *
-              </label>
-              <input
-                type="text"
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="title">
+                Event Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="title"
                 required
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Team Meeting"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
               <textarea
+                id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                 placeholder="Meeting agenda and notes..."
               />
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
                 id="all_day"
-                checked={formData.all_day}
-                onChange={(e) => setFormData({ ...formData, all_day: e.target.checked })}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                checked={isAllDay}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIsAllDay(checked);
+                  
+                  // Reset time to start of day for all-day events
+                  if (checked && startDate) {
+                    const newStart = new Date(startDate);
+                    newStart.setHours(0, 0, 0, 0);
+                    setStartDate(newStart);
+                    
+                    if (endDate) {
+                      const newEnd = new Date(endDate);
+                      newEnd.setHours(23, 59, 59, 999);
+                      setEndDate(newEnd);
+                    }
+                  }
+                }}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              <label htmlFor="all_day" className="ml-2 text-sm text-gray-700">
+              <Label htmlFor="all_day" className="font-normal cursor-pointer">
                 All-day event
-              </label>
+              </Label>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Start {formData.all_day ? 'Date' : 'Date & Time'} *
-                </label>
-                <input
-                  type={formData.all_day ? 'date' : 'datetime-local'}
-                  required
-                  value={formData.start_time}
-                  onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  End {formData.all_day ? 'Date' : 'Date & Time'}
-                </label>
-                <input
-                  type={formData.all_day ? 'date' : 'datetime-local'}
-                  value={formData.end_time}
-                  onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              {isAllDay ? (
+                <>
+                  <DatePicker
+                    date={startDate}
+                    setDate={setStartDate}
+                    label="Start Date"
+                    required
+                  />
+                  <DatePicker
+                    date={endDate}
+                    setDate={setEndDate}
+                    label="End Date"
+                  />
+                </>
+              ) : (
+                <>
+                  <DateTimePicker
+                    date={startDate}
+                    setDate={setStartDate}
+                    label="Start Date & Time"
+                    required
+                  />
+                  <DateTimePicker
+                    date={endDate}
+                    setDate={setEndDate}
+                    label="End Date & Time"
+                  />
+                </>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Location
-              </label>
-              <input
-                type="text"
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Conference Room A"
               />
             </div>
 
             <div className="flex gap-3 pt-4">
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1"
               >
                 {loading ? 'Creating...' : 'Create Event'}
-              </button>
-              <Link
-                href="/dashboard"
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-center"
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push('/dashboard')}
+                disabled={loading}
               >
                 Cancel
-              </Link>
+              </Button>
             </div>
           </form>
         </div>
