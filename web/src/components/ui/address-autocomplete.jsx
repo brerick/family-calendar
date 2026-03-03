@@ -26,7 +26,7 @@ export function AddressAutocomplete({ value, onChange, label, placeholder = "Ent
     // Load Google Maps script if not already loaded
     if (!window.google?.maps) {
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap&loading=async`
       script.async = true
       script.defer = true
       
