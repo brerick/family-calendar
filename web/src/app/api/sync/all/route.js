@@ -9,6 +9,10 @@ export async function POST(request) {
   try {
     const supabase = await createClient()
 
+    // First, renew any expiring Google Calendar watches (don't wait for it)
+    fetch(`${request.nextUrl.origin}/api/webhooks/google/renew`, { method: 'POST' })
+      .catch(err => console.error('Watch renewal error:', err))
+
     // Get all external calendars that need syncing (iCal and Google)
     const { data: calendars, error } = await supabase
       .from('calendars')

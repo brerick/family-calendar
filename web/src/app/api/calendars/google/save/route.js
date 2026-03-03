@@ -89,6 +89,38 @@ export async function POST(request) {
 
       createdCalendars.push(newCalendar)
 
+      // Register webhook watch for real-time updates
+      try {
+        const channelId = `${newCalendar.id}-${Date.now()}`
+        const webhookUrl = `${process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin}/api/webhooks/google`
+        const webhookToken = process.env.GOOGLE_WEBHOOK_TOKEN || 'your-secret-token'
+
+        const watchResponse = await calendar.events.watch({
+          calendarId: cal.id,
+          requestBody: {
+            id: channelId,
+            type: 'web_hook',
+            address: webhookUrl,
+            token: webhookToken,
+            expiration: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days from now
+          },
+        })
+
+        // Store watch info in database
+        if (watchResponse.data) {
+          await supabase.from('google_calendar_watches').insert({
+            calendar_id: newCalendar.id,
+            channel_id: channelId,
+            resource_id: watchResponse.data.resourceId,
+            expiration: new Date(parseInt(watchResponse.data.expiration)),
+          })
+          console.log('Webhook watch registered:', channelId)
+        }
+      } catch (watchError) {
+        console.error('Error registering webhook watch:', watchError)
+        // Continue even if watch registration fails
+      }
+
       // Trigger initial sync (don't wait for it)
       try {
         fetch(`${request.nextUrl.origin}/api/sync/google/${newCalendar.id}`, {
