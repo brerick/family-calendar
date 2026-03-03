@@ -38,14 +38,17 @@ export default async function DashboardPage() {
     .eq('household_id', membership.household_id)
     .order('created_at', { ascending: true })
 
-  // Fetch events
+  // Get visible calendar IDs
+  const visibleCalendarIds = calendars?.filter(c => c.visible !== false).map(c => c.id) || []
+
+  // Fetch events only from visible calendars
   const { data: events } = await supabase
     .from('events')
     .select(`
       *,
       calendar:calendars(id, name, color, type)
     `)
-    .in('calendar_id', calendars?.map(c => c.id) || [])
+    .in('calendar_id', visibleCalendarIds.length > 0 ? visibleCalendarIds : ['00000000-0000-0000-0000-000000000000']) // Use impossible ID if no visible calendars
     .order('start_time', { ascending: true })
 
   return (
