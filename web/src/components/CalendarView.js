@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label"
 import { DateTimePicker, DatePicker } from "@/components/ui/date-time-picker"
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, CopyIcon } from 'lucide-react';
+import SearchBar from '@/components/SearchBar';
 
 export default function CalendarView({ events, calendars }) {
   const calendarRef = useRef(null);
@@ -33,6 +34,9 @@ export default function CalendarView({ events, calendars }) {
   // Quick create modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createDate, setCreateDate] = useState(null);
+  
+  // Search/filter state
+  const [filters, setFilters] = useState({ searchQuery: '', selectedCalendarIds: [] });
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -96,8 +100,33 @@ export default function CalendarView({ events, calendars }) {
   const [editEndDate, setEditEndDate] = useState(null);
   const [editIsAllDay, setEditIsAllDay] = useState(false);
 
-  // Transform events for FullCalendar
-  const calendarEvents = events.map(event => ({
+  // Filter events based on search and calendar filters
+  const filteredEvents = useMemo(() => {
+    return events.filter(event => {
+      // Filter by calendar
+      if (filters.selectedCalendarIds.length > 0 && 
+          !filters.selectedCalendarIds.includes(event.calendar_id)) {
+        return false;
+      }
+      
+      // Filter by search query
+      if (filters.searchQuery) {
+        const query = filters.searchQuery.toLowerCase();
+        const matchesTitle = event.title?.toLowerCase().includes(query);
+        const matchesDescription = event.description?.toLowerCase().includes(query);
+        const matchesLocation = event.location?.toLowerCase().includes(query);
+        
+        if (!matchesTitle && !matchesDescription && !matchesLocation) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [events, filters]);
+
+  // Transform filtered events for FullCalendar
+  const calendarEvents = filteredEvents.map(event => ({
     id: event.id,
     title: event.title,
     start: event.start_time,
@@ -316,6 +345,11 @@ export default function CalendarView({ events, calendars }) {
 
   return (
     <>
+      <SearchBar 
+        calendars={calendars} 
+        onFilterChange={setFilters}
+      />
+      
       <div className="calendar-wrapper">
         <style jsx global>{`
           .fc {
