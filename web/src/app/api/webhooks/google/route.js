@@ -46,14 +46,24 @@ export async function POST(request) {
       )
       
       // Find the calendar associated with this watch
-      const { data: watch } = await supabase
+      const { data: watch, error: watchError } = await supabase
         .from('google_calendar_watches')
         .select('calendar_id')
         .eq('channel_id', channelId)
-        .single()
+        .maybeSingle()
+
+      if (watchError) {
+        console.error('Error finding watch for channel_id:', channelId, watchError)
+        return NextResponse.json({ success: true }) // Still return 200
+      }
+
+      if (!watch) {
+        console.log('No watch found for channel_id:', channelId, '- This may be an expired or deleted watch')
+        return NextResponse.json({ success: true }) // Still return 200
+      }
 
       if (watch?.calendar_id) {
-        console.log('Triggering sync for calendar:', watch.calendar_id)
+        console.log('Triggering sync for calendar:', watch.calendar_id, 'from channel_id:', channelId)
         
         // Trigger async sync (don't wait for response)
         const syncUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://family-calendar-beryl.vercel.app'}/api/sync/google/${watch.calendar_id}`
