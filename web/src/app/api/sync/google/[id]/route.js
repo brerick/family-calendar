@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createServerClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { google } from 'googleapis'
 
@@ -13,7 +13,18 @@ TIME_WINDOW_END.setMonth(TIME_WINDOW_END.getMonth() + 18)
 
 export async function POST(request, { params }) {
   try {
-    const supabase = await createClient()
+    // Use service role client to bypass RLS (webhooks trigger this with no user auth)
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+    
     const { id: calendarId } = await params
 
     console.log('[Google Sync] Starting sync for calendar:', calendarId)
