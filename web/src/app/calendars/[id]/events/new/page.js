@@ -7,6 +7,7 @@ import { DateTimePicker, DatePicker } from '@/components/ui/date-time-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 
 export default function NewEventPage({ params }) {
   const router = useRouter();
@@ -181,15 +182,12 @@ export default function NewEventPage({ params }) {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="Conference Room A"
-              />
-            </div>
+            <AddressAutocomplete
+              value={formData.location}
+              onChange={(value) => setFormData({ ...formData, location: value })}
+              label="Location"
+              placeholder="Enter address or place name..."
+            />
 
             <div className="flex gap-3 pt-4">
               <Button
