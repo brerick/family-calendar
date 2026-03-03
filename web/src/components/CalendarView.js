@@ -34,6 +34,58 @@ export default function CalendarView({ events, calendars }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createDate, setCreateDate] = useState(null);
   
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if user is typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Escape to close modals
+      if (e.key === 'Escape') {
+        if (isEditMode) {
+          handleCancelEdit();
+        } else if (isModalOpen) {
+          setIsModalOpen(false);
+        } else if (isCreateModalOpen) {
+          setIsCreateModalOpen(false);
+        }
+      }
+
+      // N or C to create new event (with today's date)
+      if ((e.key === 'n' || e.key === 'c') && !isModalOpen && !isCreateModalOpen) {
+        const today = new Date();
+        today.setHours(9, 0, 0, 0);
+        setCreateDate(today);
+        setIsCreateModalOpen(true);
+      }
+
+      // T to go to today
+      if (e.key === 't' && !isModalOpen && !isCreateModalOpen) {
+        const calendarApi = calendarRef.current?.getApi();
+        if (calendarApi) {
+          calendarApi.today();
+        }
+      }
+
+      // Arrow keys to navigate
+      if (!isModalOpen && !isCreateModalOpen) {
+        const calendarApi = calendarRef.current?.getApi();
+        if (calendarApi) {
+          if (e.key === 'ArrowLeft') {
+            calendarApi.prev();
+          } else if (e.key === 'ArrowRight') {
+            calendarApi.next();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen, isCreateModalOpen, isEditMode]);
+  
   // Edit form state
   const [editForm, setEditForm] = useState({
     title: '',
@@ -280,14 +332,34 @@ export default function CalendarView({ events, calendars }) {
             background-color: #1d4ed8 !important;
             border-color: #1d4ed8 !important;
           }
+          .fc-today-button {
+            font-weight: 600 !important;
+            background-color: #10b981 !important;
+            border-color: #10b981 !important;
+          }
+          .fc-today-button:hover {
+            background-color: #059669 !important;
+            border-color: #059669 !important;
+          }
+          .fc-today-button:disabled {
+            background-color: #9ca3af !important;
+            border-color: #9ca3af !important;
+            opacity: 0.5 !important;
+          }
           .fc-daygrid-day-number {
             padding: 4px !important;
           }
           .fc-event {
-            cursor: pointer;
+            cursor: move;
           }
           .fc-event-title {
             font-weight: 500;
+          }
+          .fc-day-today {
+            background-color: #dbeafe !important;
+          }
+          .fc-daygrid-day-events {
+            min-height: 20px;
           }
         `}</style>
         
