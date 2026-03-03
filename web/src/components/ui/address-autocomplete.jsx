@@ -74,7 +74,6 @@ export function AddressAutocomplete({ value, onChange, label, placeholder = "Ent
         // Use legacy Autocomplete (free Places API)
         const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
           fields: ['formatted_address', 'name', 'address_components'],
-          types: ['address', 'establishment'],
         })
         
         autocomplete.addListener('place_changed', () => {
