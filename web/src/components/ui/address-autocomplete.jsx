@@ -23,30 +23,50 @@ export function AddressAutocomplete({ value, onChange, label, placeholder = "Ent
       return
     }
 
+    let initAttempts = 0
+    const maxAttempts = 10
+
     // Check if script is already loading or loaded
     const existingScript = document.querySelector(`script[src*="maps.googleapis.com/maps/api/js"]`)
     
     if (!window.google?.maps && !existingScript) {
       // Load Google Maps script with Places library
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
       script.async = true
       script.defer = true
       script.id = 'google-maps-script'
       
       script.onload = () => {
-        initAutocomplete()
+        console.log('Google Maps script loaded')
+        waitForPlacesLibrary()
+      }
+      
+      script.onerror = () => {
+        console.error('Failed to load Google Maps script')
       }
       
       document.head.appendChild(script)
     } else if (window.google?.maps) {
-      // Already loaded, initialize directly
-      initAutocomplete()
+      // Already loaded, wait for places library
+      waitForPlacesLibrary()
+    }
+
+    function waitForPlacesLibrary() {
+      if (window.google?.maps?.places?.Autocomplete) {
+        initAutocomplete()
+      } else if (initAttempts < maxAttempts) {
+        initAttempts++
+        console.log(`Waiting for Places library... attempt ${initAttempts}`)
+        setTimeout(waitForPlacesLibrary, 500)
+      } else {
+        console.error('Places library failed to load after maximum attempts')
+      }
     }
 
     function initAutocomplete() {
-      if (!inputRef.current || !window.google?.maps?.places) {
-        console.log('Google Maps Places library not available')
+      if (!inputRef.current) {
+        console.log('Input element not available')
         return
       }
       
@@ -67,7 +87,7 @@ export function AddressAutocomplete({ value, onChange, label, placeholder = "Ent
         })
         
         autocompleteRef.current = autocomplete
-        console.log('Google Places Autocomplete initialized')
+        console.log('Google Places Autocomplete initialized successfully!')
       } catch (error) {
         console.error('Error initializing autocomplete:', error)
       }
