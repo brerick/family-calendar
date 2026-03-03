@@ -234,7 +234,7 @@ export default function CalendarView({ events, calendars }) {
         setIsModalOpen(open);
         if (!open) setIsEditMode(false);
       }}>
-        <DialogContent className={isEditMode ? "sm:max-w-[600px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[500px]"}>
+        <DialogContent className={isEditMode ? "sm:max-w-[700px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[500px]"}>
           <DialogHeader>
             <DialogTitle className="text-xl">
               {isEditMode ? 'Edit Event' : selectedEvent?.title}
@@ -377,7 +377,7 @@ export default function CalendarView({ events, calendars }) {
                 </Label>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {editIsAllDay ? (
                   <>
                     <DatePicker
