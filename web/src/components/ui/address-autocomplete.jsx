@@ -19,48 +19,37 @@ export function AddressAutocomplete({ value, onChange, label, placeholder = "Ent
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
     
     if (!apiKey || !inputRef.current) {
+      console.log('Google Maps API key missing or input not ready')
       return
     }
 
     // Load Google Maps script if not already loaded
     if (!window.google?.maps) {
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap`
       script.async = true
       script.defer = true
-      document.head.appendChild(script)
       
-      script.onload = () => {
+      window.initMap = () => {
         initAutocomplete()
       }
+      
+      document.head.appendChild(script)
     } else {
       initAutocomplete()
     }
 
     function initAutocomplete() {
-      if (!inputRef.current || !window.google?.maps?.places) return
+      if (!inputRef.current || !window.google?.maps?.places) {
+        console.log('Google Maps Places API not available')
+        return
+      }
       
-      // Use the new PlaceAutocompleteElement if available, fallback to Autocomplete
-      if (window.google.maps.places.PlaceAutocompleteElement) {
-        // New recommended API
-        const autocompleteElement = new window.google.maps.places.PlaceAutocompleteElement({
-          inputElement: inputRef.current,
-        })
-        
-        autocompleteElement.addEventListener('gmp-placeselect', async ({ place }) => {
-          await place.fetchFields({ fields: ['displayName', 'formattedAddress'] })
-          const address = place.formattedAddress || place.displayName
-          if (address) {
-            setInputValue(address)
-            onChange(address)
-          }
-        })
-        
-        autocompleteRef.current = autocompleteElement
-      } else {
-        // Fallback to old Autocomplete API
+      try {
+        // Use standard Autocomplete API (still fully supported)
         const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-          fields: ['formatted_address', 'name'],
+          fields: ['formatted_address', 'name', 'geometry'],
+          types: ['address', 'establishment'],
         })
         
         autocomplete.addListener('place_changed', () => {
@@ -73,13 +62,16 @@ export function AddressAutocomplete({ value, onChange, label, placeholder = "Ent
         })
         
         autocompleteRef.current = autocomplete
+        console.log('Google Places Autocomplete initialized')
+      } catch (error) {
+        console.error('Error initializing autocomplete:', error)
       }
     }
 
     return () => {
       // Cleanup
-      if (autocompleteRef.current) {
-        window.google?.maps?.event?.clearInstanceListeners(autocompleteRef.current)
+      if (autocompleteRef.current && window.google?.maps?.event) {
+        window.google.maps.event.clearInstanceListeners(autocompleteRef.current)
       }
     }
   }, [])
