@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { CalendarIcon, MapPinIcon, Trash2Icon } from 'lucide-react';
+import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon } from 'lucide-react';
 
 export default function CalendarView({ events, calendars }) {
   const calendarRef = useRef(null);
@@ -236,6 +236,15 @@ export default function CalendarView({ events, calendars }) {
               onClick={() => setIsModalOpen(false)}
             >
               Close
+            </Button>
+            <Button 
+              variant="default"
+              onClick={() => {
+                router.push(`/events/${selectedEvent.id}/edit`);
+              }}
+            >
+              <PencilIcon className="h-4 w-4 mr-2" />
+              Edit
             </Button>
             <Button 
               variant="destructive"
