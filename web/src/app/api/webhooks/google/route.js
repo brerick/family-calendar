@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createServerClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 // Google Calendar sends notifications to this webhook
@@ -33,12 +33,22 @@ export async function POST(request) {
 
     // For 'exists' notifications (actual changes), trigger a sync
     if (resourceState === 'exists' && channelId) {
-      const supabase = await createClient()
+      // Use service role client to bypass RLS (webhooks have no user auth)
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      )
       
       // Find the calendar associated with this watch
       const { data: watch } = await supabase
         .from('google_calendar_watches')
-        .select('calendar_id, calendars(id, household_id)')
+        .select('calendar_id')
         .eq('channel_id', channelId)
         .single()
 
