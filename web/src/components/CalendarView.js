@@ -401,6 +401,31 @@ export default function CalendarView({ events, calendars }) {
           .fc-daygrid-day-events {
             min-height: 20px;
           }
+          
+          /* Mobile responsive styles */
+          @media (max-width: 768px) {
+            .fc-toolbar-title {
+              font-size: 1.1rem !important;
+            }
+            .fc-button {
+              padding: 0.3rem 0.5rem !important;
+              font-size: 0.85rem !important;
+            }
+            .fc-toolbar-chunk {
+              display: flex;
+              gap: 0.25rem;
+            }
+            .fc-header-toolbar {
+              margin-bottom: 0.5rem !important;
+            }
+            .fc-daygrid-day-number {
+              font-size: 0.85rem !important;
+            }
+            .fc-event {
+              font-size: 0.75rem !important;
+              cursor: pointer;
+            }
+          }
         `}</style>
         
         <FullCalendar
@@ -410,7 +435,15 @@ export default function CalendarView({ events, calendars }) {
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            right: 'dayGridMonth,timeGridWeek'
+          }}
+          views={{
+            dayGridMonth: {
+              titleFormat: { year: 'numeric', month: 'short' }
+            },
+            timeGridWeek: {
+              titleFormat: { year: 'numeric', month: 'short', day: 'numeric' }
+            }
           }}
           events={calendarEvents}
           eventClick={handleEventClick}
@@ -428,6 +461,8 @@ export default function CalendarView({ events, calendars }) {
             meridiem: 'short'
           }}
           eventClassNames="cursor-move"
+          contentHeight="auto"
+          handleWindowResize={true}
         />
       </div>
 
@@ -435,7 +470,7 @@ export default function CalendarView({ events, calendars }) {
         setIsModalOpen(open);
         if (!open) setIsEditMode(false);
       }}>
-        <DialogContent className={isEditMode ? "sm:max-w-[700px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[500px]"}>
+        <DialogContent className={isEditMode ? "sm:max-w-[700px] max-w-[95vw] max-h-[90vh] overflow-y-auto" : "sm:max-w-[500px] max-w-[95vw] max-h-[85vh] overflow-y-auto"}>
           <DialogHeader>
             <DialogTitle className="text-xl">
               {isEditMode ? 'Edit Event' : selectedEvent?.title}
@@ -682,7 +717,7 @@ export default function CalendarView({ events, calendars }) {
 
       {/* Quick Create Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-w-[95vw]">
           <DialogHeader>
             <DialogTitle className="text-xl">Quick Create Event</DialogTitle>
             <DialogDescription>
