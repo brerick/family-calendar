@@ -67,6 +67,12 @@ export default function EditEventPage({ params }) {
       setError('Please select a start date');
       return;
     }
+
+    // Validate end time is not before start time
+    if (endDate && endDate < startDate) {
+      setError('End time cannot be before start time');
+      return;
+    }
     
     setSaving(true);
     setError('');

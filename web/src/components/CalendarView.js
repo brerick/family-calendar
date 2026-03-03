@@ -170,6 +170,12 @@ export default function CalendarView({ events, calendars }) {
       return;
     }
 
+    // Validate end time is not before start time
+    if (editEndDate && editEndDate < editStartDate) {
+      alert('End time cannot be before start time');
+      return;
+    }
+
     setSaving(true);
 
     try {
