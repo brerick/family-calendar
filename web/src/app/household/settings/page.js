@@ -181,7 +181,7 @@ export default function HouseholdSettingsPage() {
       alert(data.message || 'Invite sent!');
       setInviteEmail('');
       setShowEmailForm(false);
-      await fetchInvites();
+      await fetchData();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -416,7 +416,7 @@ export default function HouseholdSettingsPage() {
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Note: Email sending requires configuration. For now, a link will be generated that you can share manually.
+                    📧 An email invitation will be sent to the recipient with a link to join your household.
                   </p>
                 </div>
               )}
