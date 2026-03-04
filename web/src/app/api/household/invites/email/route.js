@@ -81,7 +81,7 @@ export async function POST(request) {
   // Send email via Resend
   try {
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: 'HomeOrbit Calendar <invites@homeorbit.app>',
+      from: 'HomeOrbit Calendar <invites@booblie.com>',
       to: email,
       subject: `You're invited to join ${household.name || 'a household'} on HomeOrbit`,
       html: `
