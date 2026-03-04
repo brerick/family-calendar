@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
+import RecurrenceSelector from '@/components/ui/recurrence-selector';
 
 export default function NewEventPage({ params }) {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function NewEventPage({ params }) {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [isAllDay, setIsAllDay] = useState(false);
+  const [recurrenceRule, setRecurrenceRule] = useState(null);
 
   // Unwrap params
   useEffect(() => {
@@ -57,6 +59,7 @@ export default function NewEventPage({ params }) {
         end_time: endDate ? endDate.toISOString() : startDate.toISOString(),
         all_day: isAllDay,
         location: formData.location,
+        recurrence_rule: recurrenceRule,
       };
 
       const res = await fetch('/api/events', {
@@ -193,6 +196,12 @@ export default function NewEventPage({ params }) {
               onChange={(value) => setFormData({ ...formData, location: value })}
               label="Location"
               placeholder="Enter address or place name..."
+            />
+
+            <RecurrenceSelector
+              value={recurrenceRule}
+              onChange={setRecurrenceRule}
+              startDate={startDate}
             />
 
             <div className="flex gap-3 pt-4">

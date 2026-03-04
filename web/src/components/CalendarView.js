@@ -19,7 +19,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DateTimePicker, DatePicker } from "@/components/ui/date-time-picker"
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
-import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, CopyIcon } from 'lucide-react';
+import RecurrenceSelector from "@/components/ui/recurrence-selector"
+import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, RepeatIcon } from 'lucide-react';
 import SearchBar from '@/components/SearchBar';
 
 export default function CalendarView({ events, calendars }) {
@@ -99,6 +100,7 @@ export default function CalendarView({ events, calendars }) {
   const [editStartDate, setEditStartDate] = useState(null);
   const [editEndDate, setEditEndDate] = useState(null);
   const [editIsAllDay, setEditIsAllDay] = useState(false);
+  const [editRecurrenceRule, setEditRecurrenceRule] = useState(null);
 
   // Filter events based on search and calendar filters
   const filteredEvents = useMemo(() => {
@@ -139,6 +141,7 @@ export default function CalendarView({ events, calendars }) {
       location: event.location,
       calendarName: event.calendar?.name,
       calendarId: event.calendar_id,
+      recurrenceRule: event.recurrence_rule,
     }
   }));
 
@@ -158,6 +161,7 @@ export default function CalendarView({ events, calendars }) {
       calendarName: props.calendarName,
       calendarId: props.calendarId,
       color: event.backgroundColor,
+      recurrenceRule: props.recurrenceRule,
     };
     
     setSelectedEvent(eventData);
@@ -172,6 +176,7 @@ export default function CalendarView({ events, calendars }) {
     setEditStartDate(event.start ? new Date(event.start) : null);
     setEditEndDate(event.end ? new Date(event.end) : null);
     setEditIsAllDay(event.allDay || false);
+    setEditRecurrenceRule(props.recurrenceRule || null);
     
     setIsModalOpen(true);
   };
@@ -190,6 +195,7 @@ export default function CalendarView({ events, calendars }) {
     setEditStartDate(selectedEvent.start ? new Date(selectedEvent.start) : null);
     setEditEndDate(selectedEvent.end ? new Date(selectedEvent.end) : null);
     setEditIsAllDay(selectedEvent.allDay || false);
+    setEditRecurrenceRule(selectedEvent.recurrenceRule || null);
     setIsEditMode(false);
   };
 
@@ -215,6 +221,7 @@ export default function CalendarView({ events, calendars }) {
         end_time: editEndDate ? editEndDate.toISOString() : editStartDate.toISOString(),
         all_day: editIsAllDay,
         location: editForm.location,
+        recurrence_rule: editRecurrenceRule,
       };
 
       const res = await fetch(`/api/events/${selectedEvent.id}`, {
@@ -293,53 +300,44 @@ export default function CalendarView({ events, calendars }) {
     }
   };
 
-  const handleDuplicateEvent = async () => {
-    if (!selectedEvent) return;
-
-    setSaving(true);
+  // Helper function to format recurrence rule for display
+  const formatRecurrence = (recurrenceRule) => {
+    if (!recurrenceRule) return null;
+    
     try {
-      // Get the first visible calendar, or the event's calendar
-      const targetCalendar = calendars?.find(c => c.visible !== false);
-      if (!targetCalendar) {
-        alert('No calendar available');
-        return;
+      const rule = JSON.parse(recurrenceRule);
+      let text = `Repeats every ${rule.interval > 1 ? rule.interval + ' ' : ''}`;
+      
+      switch (rule.frequency) {
+        case 'daily':
+          text += rule.interval === 1 ? 'day' : 'days';
+          break;
+        case 'weekly':
+          text += rule.interval === 1 ? 'week' : 'weeks';
+          if (rule.byweekday && rule.byweekday.length > 0) {
+            const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+            const dayNames = rule.byweekday.map(d => days[d]).join(', ');
+            text += ` on ${dayNames}`;
+          }
+          break;
+        case 'monthly':
+          text += rule.interval === 1 ? 'month' : 'months';
+          break;
+        case 'yearly':
+          text += rule.interval === 1 ? 'year' : 'years';
+          break;
       }
 
-      const newStartDate = new Date(selectedEvent.start);
-      newStartDate.setDate(newStartDate.getDate() + 7); // Duplicate 1 week later
-
-      const newEndDate = selectedEvent.end ? new Date(selectedEvent.end) : null;
-      if (newEndDate) {
-        newEndDate.setDate(newEndDate.getDate() + 7);
+      if (rule.until) {
+        text += `, until ${new Date(rule.until).toLocaleDateString()}`;
+      } else if (rule.count) {
+        text += `, ${rule.count} times`;
       }
 
-      const eventData = {
-        calendar_id: selectedEvent.calendarId,
-        title: `${selectedEvent.title} (Copy)`,
-        description: selectedEvent.description,
-        start_time: newStartDate.toISOString(),
-        end_time: newEndDate ? newEndDate.toISOString() : newStartDate.toISOString(),
-        all_day: selectedEvent.allDay,
-        location: selectedEvent.location,
-      };
-
-      const res = await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventData),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to duplicate event');
-      }
-
-      setIsModalOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error('Error duplicating event:', error);
-      alert('Failed to duplicate event');
-    } finally {
-      setSaving(false);
+      return text;
+    } catch (e) {
+      console.error('Failed to parse recurrence rule:', e);
+      return null;
     }
   };
 
@@ -557,6 +555,16 @@ export default function CalendarView({ events, calendars }) {
                   </div>
                 </div>
               )}
+
+              {selectedEvent?.recurrenceRule && (
+                <div className="flex items-start gap-3">
+                  <RepeatIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">Recurrence</p>
+                    <p className="text-sm mt-1">{formatRecurrence(selectedEvent.recurrenceRule)}</p>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             // Edit Mode
@@ -651,6 +659,12 @@ export default function CalendarView({ events, calendars }) {
                 label="Location"
                 placeholder="Enter address or place name..."
               />
+
+              <RecurrenceSelector
+                value={editRecurrenceRule}
+                onChange={setEditRecurrenceRule}
+                startDate={editStartDate}
+              />
             </div>
           )}
 
@@ -662,14 +676,6 @@ export default function CalendarView({ events, calendars }) {
                   onClick={() => setIsModalOpen(false)}
                 >
                   Close
-                </Button>
-                <Button 
-                  variant="secondary"
-                  onClick={handleDuplicateEvent}
-                  disabled={saving}
-                >
-                  <CopyIcon className="h-4 w-4 mr-2" />
-                  Duplicate
                 </Button>
                 <Button 
                   variant="default"
