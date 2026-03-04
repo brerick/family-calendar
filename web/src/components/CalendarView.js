@@ -361,6 +361,7 @@ export default function CalendarView({ events, calendars }) {
             background-color: #3b82f6 !important;
             border-color: #3b82f6 !important;
             text-transform: capitalize !important;
+            padding: 0.4rem 0.8rem !important;
           }
           .fc-button:hover {
             background-color: #2563eb !important;
@@ -389,6 +390,7 @@ export default function CalendarView({ events, calendars }) {
           }
           .fc-event {
             cursor: move;
+            margin-bottom: 2px !important;
           }
           .fc-event-title {
             font-weight: 500;
@@ -402,26 +404,61 @@ export default function CalendarView({ events, calendars }) {
           
           /* Mobile responsive styles */
           @media (max-width: 768px) {
-            .fc-toolbar-title {
-              font-size: 1.1rem !important;
-            }
-            .fc-button {
-              padding: 0.3rem 0.5rem !important;
-              font-size: 0.85rem !important;
+            .fc-toolbar {
+              flex-direction: column !important;
+              gap: 0.5rem !important;
             }
             .fc-toolbar-chunk {
               display: flex;
-              gap: 0.25rem;
+              justify-content: center;
+              flex-wrap: wrap;
+              gap: 0.25rem !important;
+            }
+            .fc-toolbar-title {
+              font-size: 1rem !important;
+              text-align: center;
+              width: 100%;
+            }
+            .fc-button {
+              padding: 0.35rem 0.6rem !important;
+              font-size: 0.8rem !important;
             }
             .fc-header-toolbar {
-              margin-bottom: 0.5rem !important;
+              margin-bottom: 0.75rem !important;
             }
             .fc-daygrid-day-number {
-              font-size: 0.85rem !important;
+              font-size: 0.8rem !important;
+              padding: 2px !important;
+            }
+            .fc-col-header-cell-cushion {
+              padding: 4px 2px !important;
+              font-size: 0.75rem !important;
             }
             .fc-event {
-              font-size: 0.75rem !important;
+              font-size: 0.7rem !important;
               cursor: pointer;
+              padding: 1px 2px !important;
+            }
+            .fc-event-title {
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+            .fc-daygrid-event-dot {
+              display: none !important;
+            }
+          }
+          
+          @media (max-width: 480px) {
+            .fc-toolbar-title {
+              font-size: 0.9rem !important;
+            }
+            .fc-button {
+              padding: 0.3rem 0.5rem !important;
+              font-size: 0.75rem !important;
+            }
+            .fc-daygrid-day-frame {
+              min-height: 60px !important;
             }
           }
         `}</style>
@@ -468,9 +505,9 @@ export default function CalendarView({ events, calendars }) {
         setIsModalOpen(open);
         if (!open) setIsEditMode(false);
       }}>
-        <DialogContent className={isEditMode ? "sm:max-w-[700px] max-w-[95vw] max-h-[90vh] overflow-y-auto" : "sm:max-w-[500px] max-w-[95vw] max-h-[85vh] overflow-y-auto"}>
+        <DialogContent className={isEditMode ? "sm:max-w-[700px] max-w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6" : "sm:max-w-[500px] max-w-[95vw] max-h-[85vh] overflow-y-auto p-4 sm:p-6"}>
           <DialogHeader>
-            <DialogTitle className="text-xl">
+            <DialogTitle className="text-lg sm:text-xl">
               {isEditMode ? 'Edit Event' : selectedEvent?.title}
             </DialogTitle>
           </DialogHeader>
@@ -723,10 +760,10 @@ export default function CalendarView({ events, calendars }) {
 
       {/* Quick Create Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-[500px] max-w-[95vw]">
+        <DialogContent className="sm:max-w-[500px] max-w-[95vw] p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="text-xl">Quick Create Event</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Quick Create Event</DialogTitle>
+            <DialogDescription className="text-sm">
               {createDate && `Creating event for ${createDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`}
             </DialogDescription>
           </DialogHeader>

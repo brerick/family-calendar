@@ -239,8 +239,8 @@ export default function HouseholdSettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-4xl mx-auto px-4">
+      <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4">
           <p>Loading...</p>
         </div>
       </div>
@@ -248,14 +248,14 @@ export default function HouseholdSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold">Household Settings</h1>
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold">Household Settings</h1>
             <Link
               href="/dashboard"
-              className="text-sm text-gray-600 hover:text-gray-900"
+              className="text-sm text-gray-600 hover:text-gray-900 whitespace-nowrap"
             >
               ← Back to Dashboard
             </Link>
@@ -268,8 +268,8 @@ export default function HouseholdSettingsPage() {
           )}
 
           {/* Household Members Section */}
-          <div className="mb-8 pb-8 border-b border-gray-200">
-            <h2 className="text-lg font-semibold mb-4">Household Members</h2>
+          <div className="mb-6 sm:mb-8 pb-6 sm:pb-8 border-b border-gray-200">
+            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Household Members</h2>
             
             {members.length === 0 ? (
               <p className="text-sm text-gray-500">No members found</p>
@@ -283,37 +283,37 @@ export default function HouseholdSettingsPage() {
                   return (
                     <div
                       key={member.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200 gap-3"
                     >
                       <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-semibold text-lg">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-blue-600 font-semibold text-base sm:text-lg">
                               {details.display_name?.[0]?.toUpperCase() || '?'}
                             </span>
                           </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">
                               {details.display_name || 'Loading...'}
                             </h3>
-                            <p className="text-sm text-gray-600">{details.email || 'Loading...'}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 truncate">{details.email || 'Loading...'}</p>
                           </div>
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3 justify-end sm:justify-start">
                         {canManage ? (
                           <select
                             value={member.role}
                             onChange={(e) => updateMemberRole(member.id, e.target.value)}
-                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 capitalize"
+                            className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 capitalize"
                           >
                             <option value="member">Member</option>
                             <option value="viewer">Viewer</option>
                             <option value="owner">Owner</option>
                           </select>
                         ) : (
-                          <span className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium capitalize ${
+                          <span className={`inline-flex items-center px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium capitalize ${
                             isOwner 
                               ? 'bg-purple-100 text-purple-800' 
                               : member.role === 'member'
@@ -435,22 +435,22 @@ export default function HouseholdSettingsPage() {
                 {invites.map((invite) => (
                   <div
                     key={invite.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+                    className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:bg-gray-50"
                   >
-                    <div className="flex gap-4">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                       {/* QR Code */}
-                      <div className="flex-shrink-0">
+                      <div className="flex-shrink-0 self-center sm:self-start">
                         {qrCodeUrls[invite.id] ? (
                           <div className="border-2 border-gray-200 rounded-lg p-2 bg-white">
                             <img 
                               src={qrCodeUrls[invite.id]} 
                               alt="QR Code" 
-                              className="w-32 h-32"
+                              className="w-28 h-28 sm:w-32 sm:h-32"
                             />
                             <p className="text-xs text-center text-gray-500 mt-1">Scan to join</p>
                           </div>
                         ) : (
-                          <div className="w-32 h-32 bg-gray-100 rounded animate-pulse"></div>
+                          <div className="w-28 h-28 sm:w-32 sm:h-32 bg-gray-100 rounded animate-pulse"></div>
                         )}
                       </div>
 
@@ -464,19 +464,19 @@ export default function HouseholdSettingsPage() {
                             <span className="text-xs text-green-600">✓ Copied!</span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600 mb-3">
+                        <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">
                           Expires: {formatDate(invite.expires_at)}
                         </p>
-                        <div className="mb-3">
+                        <div className="mb-2 sm:mb-3">
                           <p className="text-xs text-gray-500 mb-1">Shareable Link:</p>
                           <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono break-all block">
                             {window.location.origin}/household/setup?invite={invite.token}
                           </code>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <button
                             onClick={() => copyInviteLink(invite.token)}
-                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md flex items-center"
+                            className="px-3 py-1.5 text-xs sm:text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md flex items-center justify-center"
                           >
                             <Copy className="h-4 w-4 mr-2" />Copy Link
                           </button>
