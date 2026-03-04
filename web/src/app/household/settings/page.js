@@ -156,6 +156,18 @@ export default function HouseholdSettingsPage() {
         body: JSON.stringify({ role: selectedRole, expires_days: 7 }),
       });
 
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to generate invite');
+      }
+
+      await fetchInvites();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const sendEmailInvite = async () => {
     if (!inviteEmail || !inviteEmail.includes('@')) {
@@ -187,18 +199,6 @@ export default function HouseholdSettingsPage() {
       setError(err.message);
     } finally {
       setSendingEmail(false);
-    }
-  };
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to generate invite');
-      }
-
-      await fetchInvites();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setGenerating(false);
     }
   };
 
