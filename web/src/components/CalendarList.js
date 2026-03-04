@@ -1,14 +1,35 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Eye, EyeOff, RefreshCw, Trash2, Plus, Edit, Calendar } from 'lucide-react'
 
 export default function CalendarList({ calendars }) {
   const [deleting, setDeleting] = useState(null)
   const [syncing, setSyncing] = useState(null)
   const [toggling, setToggling] = useState(null)
+  const [eventCounts, setEventCounts] = useState({})
   const router = useRouter()
+
+  // Fetch event counts for each calendar
+  useEffect(() => {
+    const fetchEventCounts = async () => {
+      try {
+        const response = await fetch('/api/calendars/event-counts')
+        if (response.ok) {
+          const data = await response.json()
+          setEventCounts(data)
+        }
+      } catch (error) {
+        console.error('Error fetching event counts:', error)
+      }
+    }
+    
+    if (calendars.length > 0) {
+      fetchEventCounts()
+    }
+  }, [calendars])
 
   const handleDelete = async (calendarId) => {
     if (!confirm('Are you sure you want to delete this calendar? All events will be deleted.')) {
@@ -101,99 +122,185 @@ export default function CalendarList({ calendars }) {
 
   if (calendars.length === 0) {
     return (
-      <p className="text-sm text-gray-500 text-center py-4">
-        No calendars yet
-      </p>
+      <div className="text-center py-8">
+        <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+        <p className="text-sm text-gray-500 mb-3">No calendars yet</p>
+        <Link
+          href="/calendars/new"
+          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+        >
+          <Plus className="h-4 w-4" />
+          Create your first calendar
+        </Link>
+      </div>
     )
   }
 
+  // Group calendars by visibility
+  const visibleCalendars = calendars.filter(cal => cal.visible !== false)
+  const hiddenCalendars = calendars.filter(cal => cal.visible === false)
+
   return (
-    <div className="space-y-2">
-      {calendars.map((calendar) => (
+    <div className="space-y-3">
+      {/* Visible Calendars */}
+      {visibleCalendars.map((calendar) => (
         <div
           key={calendar.id}
-          className="flex items-center justify-between p-3 rounded-md hover:bg-gray-50 group"
+          className="group border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm transition-all bg-white"
         >
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {/* Visibility toggle */}
+          <div className="flex items-start gap-3">
+            {/* Color indicator with visibility toggle */}
             <button
               onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
               disabled={toggling === calendar.id}
-              className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+              className="flex-shrink-0 mt-0.5 transition-all disabled:opacity-50 hover:scale-110"
               title={calendar.visible ?? true ? 'Hide calendar' : 'Show calendar'}
             >
-              {toggling === calendar.id ? (
-                <span className="text-sm">⟳</span>
-              ) : (calendar.visible ?? true) ? (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                  <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                </svg>
-              )}
+              <div
+                className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
+                style={{ 
+                  borderColor: calendar.color,
+                  backgroundColor: calendar.color + '20'
+                }}
+              >
+                {toggling === calendar.id ? (
+                  <RefreshCw className="h-3 w-3 animate-spin" style={{ color: calendar.color }} />
+                ) : (
+                  <Eye className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: calendar.color }} />
+                )}
+              </div>
             </button>
             
-            <div
-              className="w-4 h-4 rounded flex-shrink-0"
-              style={{ 
-                backgroundColor: calendar.color,
-                opacity: (calendar.visible ?? true) ? 1 : 0.3
-              }}
-            />
             <div className="flex-1 min-w-0">
-              <p 
-                className="text-sm font-medium text-gray-900 truncate"
-                style={{ opacity: (calendar.visible ?? true) ? 1 : 0.5 }}
-              >
-                {calendar.name}
-              </p>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-gray-500 capitalize">
-                  {calendar.type}
-                </p>
-                {(calendar.type === 'ical' || calendar.type === 'google') && (
-                  <span className="text-xs text-gray-400">
-                    • {formatLastSync(calendar.last_synced_at)}
+              {/* Calendar name and type */}
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-sm font-semibold text-gray-900 truncate">
+                  {calendar.name}
+                </h3>
+                {eventCounts[calendar.id] !== undefined && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                    {eventCounts[calendar.id]}
                   </span>
                 )}
               </div>
+              
+              <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                <span className="capitalize px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-medium">
+                  {calendar.type}
+                </span>
+                {(calendar.type === 'ical' || calendar.type === 'google') && (
+                  <>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3" />
+                      {formatLastSync(calendar.last_synced_at)}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1">
+                {(calendar.type === 'ical' || calendar.type === 'google') && (
+                  <button
+                    onClick={() => handleSync(calendar.id, calendar.type)}
+                    disabled={syncing === calendar.id}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                    title="Sync now"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${syncing === calendar.id ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline">Sync</span>
+                  </button>
+                )}
+                {calendar.type === 'manual' && (
+                  <Link
+                    href={`/calendars/${calendar.id}/events/new`}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    title="Add event"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span className="hidden sm:inline">Add Event</span>
+                  </Link>
+                )}
+                <button
+                  onClick={() => handleDelete(calendar.id)}
+                  disabled={deleting === calendar.id}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50 ml-auto"
+                  title="Delete calendar"
+                >
+                  {deleting === calendar.id ? (
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3" />
+                  )}
+                  <span className="hidden sm:inline">Delete</span>
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {(calendar.type === 'ical' || calendar.type === 'google') && (
-              <button
-                onClick={() => handleSync(calendar.id, calendar.type)}
-                disabled={syncing === calendar.id}
-                className="opacity-0 group-hover:opacity-100 text-blue-600 hover:text-blue-700 text-sm transition-opacity disabled:opacity-50"
-                title="Sync now"
-              >
-                {syncing === calendar.id ? '⟳' : '↻'}
-              </button>
-            )}
-            {calendar.type === 'manual' && (
-              <Link
-                href={`/calendars/${calendar.id}/events/new`}
-                className="opacity-0 group-hover:opacity-100 text-blue-600 hover:text-blue-700 text-sm transition-opacity"
-                title="Add event"
-              >
-                +
-              </Link>
-            )}
-            <button
-              onClick={() => handleDelete(calendar.id)}
-              disabled={deleting === calendar.id}
-              className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-700 text-sm transition-opacity disabled:opacity-50"
-              title="Delete calendar"
-            >
-              {deleting === calendar.id ? '...' : '×'}
-            </button>
           </div>
         </div>
       ))}
+
+      {/* Hidden Calendars Section */}
+      {hiddenCalendars.length > 0 && (
+        <details className="group/details">
+          <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-gray-500 hover:text-gray-700 flex items-center gap-2">
+            <span className="transform transition-transform group-open/details:rotate-90">▸</span>
+            Hidden ({hiddenCalendars.length})
+          </summary>
+          <div className="space-y-2 mt-2">
+            {hiddenCalendars.map((calendar) => (
+              <div
+                key={calendar.id}
+                className="group border border-gray-200 rounded-lg p-3 bg-gray-50 opacity-60 hover:opacity-100 transition-all"
+              >
+                <div className="flex items-start gap-3">
+                  <button
+                    onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
+                    disabled={toggling === calendar.id}
+                    className="flex-shrink-0 mt-0.5 transition-all disabled:opacity-50 hover:scale-110"
+                    title="Show calendar"
+                  >
+                    <div
+                      className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
+                      style={{ 
+                        borderColor: calendar.color,
+                        backgroundColor: calendar.color + '10'
+                      }}
+                    >
+                      {toggling === calendar.id ? (
+                        <RefreshCw className="h-3 w-3 animate-spin" style={{ color: calendar.color }} />
+                      ) : (
+                        <EyeOff className="h-3 w-3" style={{ color: calendar.color }} />
+                      )}
+                    </div>
+                  </button>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-gray-600 truncate">
+                        {calendar.name}
+                      </h3>
+                      <button
+                        onClick={() => handleDelete(calendar.id)}
+                        disabled={deleting === calendar.id}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                        title="Delete calendar"
+                      >
+                        {deleting === calendar.id ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   )
 }
