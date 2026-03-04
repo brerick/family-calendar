@@ -21,6 +21,7 @@ import { DateTimePicker, DatePicker } from "@/components/ui/date-time-picker"
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 import RecurrenceSelector from "@/components/ui/recurrence-selector"
 import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, RepeatIcon } from 'lucide-react';
+import { Calendar as CalendarIconView, List, Clock, Settings as SettingsIcon } from 'lucide-react';
 import SearchBar from '@/components/SearchBar';
 
 export default function CalendarView({ events, calendars }) {
@@ -31,6 +32,15 @@ export default function CalendarView({ events, calendars }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  // View mode state (calendar vs list)
+  const [viewMode, setViewMode] = useState('calendar'); // 'calendar' or 'list'
+  const [listTimeRange, setListTimeRange] = useState('week'); // 'day', 'week', 'month'
+  
+  // Time range for calendar view (for tablet display)
+  const [calendarStartHour, setCalendarStartHour] = useState(6);
+  const [calendarEndHour, setCalendarEndHour] = useState(22);
+  const [showTimeSettings, setShowTimeSettings] = useState(false);
   
   // Quick create modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -90,6 +100,20 @@ export default function CalendarView({ events, calendars }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isModalOpen, isCreateModalOpen, isEditMode]);
+
+  // Close time settings dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showTimeSettings && !e.target.closest('.time-settings-container')) {
+        setShowTimeSettings(false);
+      }
+    };
+
+    if (showTimeSettings) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showTimeSettings]);
   
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -128,6 +152,41 @@ export default function CalendarView({ events, calendars }) {
       return true;
     });
   }, [events, calendars, filters]);
+
+  // Filter events for list view based on time range
+  const listFilteredEvents = useMemo(() => {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    
+    let startDate, endDate;
+    
+    if (listTimeRange === 'day') {
+      startDate = startOfDay;
+      endDate = endOfDay;
+    } else if (listTimeRange === 'week') {
+      // Get start of week (Sunday)
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - now.getDay());
+      startDate.setHours(0, 0, 0, 0);
+      
+      // Get end of week (Saturday)
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59);
+    } else if (listTimeRange === 'month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    }
+    
+    return filteredEvents.filter(event => {
+      const eventStart = new Date(event.start_time);
+      const eventEnd = new Date(event.end_time || event.start_time);
+      
+      // Event overlaps with the selected time range
+      return eventStart <= endDate && eventEnd >= startDate;
+    }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  }, [filteredEvents, listTimeRange]);
 
   // Transform filtered events for FullCalendar
   const calendarEvents = filteredEvents.map(event => ({
@@ -349,7 +408,230 @@ export default function CalendarView({ events, calendars }) {
         onFilterChange={setFilters}
       />
       
-      <div className="calendar-wrapper">
+      {/* View Mode Controls */}
+      <div className="bg-white rounded-lg shadow p-3 mb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* View Toggle */}
+        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('calendar')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'calendar'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <CalendarIconView className="h-4 w-4" />
+            <span>Calendar</span>
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'list'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <List className="h-4 w-4" />
+            <span>Events</span>
+          </button>
+        </div>
+
+        {/* List View Time Range Selector */}
+        {viewMode === 'list' && (
+          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setListTimeRange('day')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                listTimeRange === 'day'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setListTimeRange('week')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                listTimeRange === 'week'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              This Week
+            </button>
+            <button
+              onClick={() => setListTimeRange('month')}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                listTimeRange === 'month'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              This Month
+            </button>
+          </div>
+        )}
+
+        {/* Calendar View Time Settings */}
+        {viewMode === 'calendar' && (view === 'timeGridWeek' || view === 'timeGridDay') && (
+          <div className="relative time-settings-container">
+            <button
+              onClick={() => setShowTimeSettings(!showTimeSettings)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium text-gray-700 transition-colors"
+            >
+              <Clock className="h-4 w-4" />
+              <span className="hidden sm:inline">Time Range: </span>
+              <span>{calendarStartHour}:00 - {calendarEndHour}:00</span>
+              <SettingsIcon className="h-3 w-3" />
+            </button>
+            
+            {showTimeSettings && (
+              <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50 w-64">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-1">
+                      Start Hour: {calendarStartHour}:00
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="23"
+                      value={calendarStartHour}
+                      onChange={(e) => setCalendarStartHour(parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-700 block mb-1">
+                      End Hour: {calendarEndHour}:00
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="23"
+                      value={calendarEndHour}
+                      onChange={(e) => setCalendarEndHour(parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      setCalendarStartHour(6);
+                      setCalendarEndHour(22);
+                    }}
+                    className="w-full text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Reset to Default (6:00 - 22:00)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* List View */}
+      {viewMode === 'list' && (
+        <div className="bg-white rounded-lg shadow p-4">
+          {listFilteredEvents.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <List className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="font-medium">No events found</p>
+              <p className="text-sm mt-1">
+                {listTimeRange === 'day' && 'No events scheduled for today'}
+                {listTimeRange === 'week' && 'No events scheduled for this week'}
+                {listTimeRange === 'month' && 'No events scheduled for this month'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {listFilteredEvents.map((event) => {
+                const calendar = calendars.find(cal => cal.id === event.calendar_id);
+                const startDate = new Date(event.start_time);
+                const endDate = event.end_time ? new Date(event.end_time) : null;
+                const isToday = startDate.toDateString() === new Date().toDateString();
+                
+                return (
+                  <div
+                    key={event.id}
+                    onClick={() => {
+                      setSelectedEvent({
+                        id: event.id,
+                        title: event.title,
+                        start: event.start_time,
+                        end: event.end_time,
+                        allDay: event.all_day,
+                        description: event.description,
+                        location: event.location,
+                        calendarName: calendar?.name,
+                        calendarColor: calendar?.color,
+                        calendarId: event.calendar_id,
+                        recurrenceRule: event.recurrence_rule,
+                      });
+                      setIsModalOpen(true);
+                    }}
+                    className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Date indicator */}
+                      <div className="flex-shrink-0 text-center">
+                        <div className={`text-xs font-medium ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>
+                          {startDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}
+                        </div>
+                        <div className={`text-2xl font-bold ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
+                          {startDate.getDate()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {startDate.toLocaleDateString('en-US', { month: 'short' })}
+                        </div>
+                      </div>
+                      
+                      {/* Event details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: calendar?.color || '#3b82f6' }}
+                          />
+                          <h4 className="font-semibold text-gray-900 truncate">{event.title}</h4>
+                        </div>
+                        
+                        {!event.all_day && (
+                          <p className="text-sm text-gray-600 mb-1">
+                            {startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            {endDate && ` - ${endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                          </p>
+                        )}
+                        
+                        {event.all_day && (
+                          <p className="text-sm text-gray-600 mb-1">All day</p>
+                        )}
+                        
+                        {event.location && (
+                          <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                            <MapPinIcon className="h-3 w-3" />
+                            <span className="truncate">{event.location}</span>
+                          </p>
+                        )}
+                        
+                        {event.description && (
+                          <p className="text-sm text-gray-600 mt-2 line-clamp-2">{event.description}</p>
+                        )}
+                        
+                        <p className="text-xs text-gray-400 mt-2">{calendar?.name}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Calendar View */}
+      {viewMode === 'calendar' && (
+        <div className="calendar-wrapper">
         <style jsx global>{`
           .fc {
             font-family: inherit;
@@ -471,7 +753,7 @@ export default function CalendarView({ events, calendars }) {
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek'
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
           }}
           views={{
             dayGridMonth: {
@@ -479,12 +761,21 @@ export default function CalendarView({ events, calendars }) {
             },
             timeGridWeek: {
               titleFormat: { year: 'numeric', month: 'short', day: 'numeric' }
+            },
+            timeGridDay: {
+              titleFormat: { year: 'numeric', month: 'short', day: 'numeric' }
             }
           }}
           events={calendarEvents}
           eventClick={handleEventClick}
           dateClick={handleDateClick}
           eventDrop={handleEventDrop}
+          datesSet={(dateInfo) => {
+            // Track view changes from FullCalendar
+            if (dateInfo.view.type !== view) {
+              setView(dateInfo.view.type);
+            }
+          }}
           editable={true}
           selectable={true}
           selectMirror={true}
@@ -499,8 +790,11 @@ export default function CalendarView({ events, calendars }) {
           eventClassNames="cursor-move"
           contentHeight="auto"
           handleWindowResize={true}
+          slotMinTime={`${String(calendarStartHour).padStart(2, '0')}:00:00`}
+          slotMaxTime={`${String(calendarEndHour).padStart(2, '0')}:00:00`}
         />
-      </div>
+        </div>
+      )}
 
       <Dialog open={isModalOpen} onOpenChange={(open) => {
         setIsModalOpen(open);
