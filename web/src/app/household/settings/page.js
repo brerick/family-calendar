@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import { createClient } from '@/lib/supabase/client';
+import { Crown, Edit, Eye, Mail, Copy, Trash2 } from 'lucide-react';
 
 export default function HouseholdSettingsPage() {
   const router = useRouter();
@@ -320,7 +321,7 @@ export default function HouseholdSettingsPage() {
                               : 'bg-gray-100 text-gray-800'
                           }`}>
                             {member.role}
-                            {isOwner && ' 👑'}
+                            {isOwner && <Crown className="h-4 w-4 ml-1 inline-block text-purple-600" />}
                           </span>
                         )}
                         
@@ -343,9 +344,9 @@ export default function HouseholdSettingsPage() {
             <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800">
                 <strong>Roles:</strong>
-                <span className="ml-2">👑 <strong>Owner</strong> - Full control</span>
-                <span className="ml-3">📝 <strong>Member</strong> - Can view and edit calendars</span>
-                <span className="ml-3">👁️ <strong>Viewer</strong> - Can only view calendars</span>
+                <span className="ml-2"><Crown className="h-4 w-4 inline-block mr-1" /><strong>Owner</strong> - Full control</span>
+                <span className="ml-3"><Edit className="h-4 w-4 inline-block mr-1" /><strong>Member</strong> - Can view and edit calendars</span>
+                <span className="ml-3"><Eye className="h-4 w-4 inline-block mr-1" /><strong>Viewer</strong> - Can only view calendars</span>
               </p>
             </div>
           </div>
@@ -415,8 +416,8 @@ export default function HouseholdSettingsPage() {
                       Cancel
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    📧 An email invitation will be sent to the recipient with a link to join your household.
+                  <p className="text-xs text-gray-500 mt-2 flex items-center">
+                    <Mail className="h-4 w-4 inline-block mr-1 flex-shrink-0" />An email invitation will be sent to the recipient with a link to join your household.
                   </p>
                 </div>
               )}
@@ -475,15 +476,15 @@ export default function HouseholdSettingsPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => copyInviteLink(invite.token)}
-                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md"
+                            className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md flex items-center"
                           >
-                            📋 Copy Link
+                            <Copy className="h-4 w-4 mr-2" />Copy Link
                           </button>
                           <button
                             onClick={() => revokeInvite(invite.id)}
-                            className="px-3 py-1.5 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-md"
+                            className="px-3 py-1.5 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-md flex items-center"
                           >
-                            🗑️ Revoke
+                            <Trash2 className="h-4 w-4 mr-2" />Revoke
                           </button>
                         </div>
                       </div>
