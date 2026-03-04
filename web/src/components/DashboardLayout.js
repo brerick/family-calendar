@@ -64,7 +64,7 @@ export default function DashboardLayout({ household, user, calendars, events, me
             transition-transform duration-300 ease-in-out
           `}>
             <div className="bg-white rounded-lg shadow p-4 sm:p-6 h-full lg:h-auto overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-2">
                 <h2 className="text-base sm:text-lg font-semibold">Calendars</h2>
                 <Link
                   href="/calendars/new"
@@ -75,6 +75,9 @@ export default function DashboardLayout({ household, user, calendars, events, me
                   +
                 </Link>
               </div>
+              <p className="text-xs text-gray-500 mb-4">
+                Toggle visibility to show/hide calendars
+              </p>
               
               <CalendarList calendars={calendars || []} />
 

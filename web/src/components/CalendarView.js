@@ -36,8 +36,8 @@ export default function CalendarView({ events, calendars }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createDate, setCreateDate] = useState(null);
   
-  // Search/filter state
-  const [filters, setFilters] = useState({ searchQuery: '', selectedCalendarIds: [] });
+  // Search filter state
+  const [filters, setFilters] = useState({ searchQuery: '' });
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -102,12 +102,14 @@ export default function CalendarView({ events, calendars }) {
   const [editIsAllDay, setEditIsAllDay] = useState(false);
   const [editRecurrenceRule, setEditRecurrenceRule] = useState(null);
 
-  // Filter events based on search and calendar filters
+  // Filter events based on search and visible calendars
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
-      // Filter by calendar
-      if (filters.selectedCalendarIds.length > 0 && 
-          !filters.selectedCalendarIds.includes(event.calendar_id)) {
+      // Find the calendar for this event
+      const calendar = calendars.find(cal => cal.id === event.calendar_id);
+      
+      // Filter out events from hidden calendars
+      if (calendar && calendar.visible === false) {
         return false;
       }
       
@@ -125,7 +127,7 @@ export default function CalendarView({ events, calendars }) {
       
       return true;
     });
-  }, [events, filters]);
+  }, [events, calendars, filters]);
 
   // Transform filtered events for FullCalendar
   const calendarEvents = filteredEvents.map(event => ({
@@ -344,7 +346,6 @@ export default function CalendarView({ events, calendars }) {
   return (
     <>
       <SearchBar 
-        calendars={calendars} 
         onFilterChange={setFilters}
       />
       
