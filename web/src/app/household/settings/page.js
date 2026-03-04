@@ -4,13 +4,18 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
+import { createClient } from '@/lib/supabase/client';
 
 export default function HouseholdSettingsPage() {
   const router = useRouter();
+  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [invites, setInvites] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [memberDetails, setMemberDetails] = useState({});
+  const [currentUserRole, setCurrentUserRole] = useState('member');
   const [error, setError] = useState('');
   const [selectedRole, setSelectedRole] = useState('member');
   const [copiedToken, setCopiedToken] = useState(null);
@@ -19,7 +24,7 @@ export default function HouseholdSettingsPage() {
   const [qrCodeUrls, setQrCodeUrls] = useState({});
 
   useEffect(() => {
-    fetchInvites();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -33,6 +38,52 @@ export default function HouseholdSettingsPage() {
         .catch(err => console.error('Error generating QR code:', err));
     });
   }, [invites]);
+
+  const fetchData = async () => {
+    try {
+      // Fetch members
+      const membersRes = await fetch('/api/household/members');
+      if (membersRes.ok) {
+        const membersData = await membersRes.json();
+        setMembers(membersData.members || []);
+        
+        // Fetch user details for all members
+        if (membersData.members && membersData.members.length > 0) {
+          const userIds = membersData.members.map(m => m.user_id);
+          const detailsRes = await fetch('/api/users/details', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_ids: userIds }),
+          });
+          
+          if (detailsRes.ok) {
+            const detailsData = await detailsRes.json();
+            const detailsMap = {};
+            detailsData.users.forEach(user => {
+              detailsMap[user.user_id] = user;
+            });
+            setMemberDetails(detailsMap);
+          }
+        }
+
+        // Check current user's role
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const currentMember = membersData.members.find(m => m.user_id === user.id);
+          if (currentMember) {
+            setCurrentUserRole(currentMember.role);
+          }
+        }
+      }
+
+      // Fetch invites
+      await fetchInvites();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchInvites = async () => {
     try {
@@ -48,8 +99,48 @@ export default function HouseholdSettingsPage() {
       setInvites(data.invites || []);
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const updateMemberRole = async (memberId, newRole) => {
+    try {
+      const res = await fetch('/api/household/members', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: memberId, new_role: newRole }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update role');
+      }
+
+      await fetchData();
+      alert('Role updated successfully');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const removeMember = async (memberId, memberName) => {
+    if (!confirm(`Remove ${memberName} from the household?`)) return;
+
+    try {
+      const res = await fetch('/api/household/members', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: memberId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to remove member');
+      }
+
+      await fetchData();
+      alert('Member removed successfully');
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -174,6 +265,90 @@ export default function HouseholdSettingsPage() {
               {error}
             </div>
           )}
+
+          {/* Household Members Section */}
+          <div className="mb-8 pb-8 border-b border-gray-200">
+            <h2 className="text-lg font-semibold mb-4">Household Members</h2>
+            
+            {members.length === 0 ? (
+              <p className="text-sm text-gray-500">No members found</p>
+            ) : (
+              <div className="space-y-3">
+                {members.map((member) => {
+                  const details = memberDetails[member.user_id] || {};
+                  const isOwner = member.role === 'owner';
+                  const canManage = currentUserRole === 'owner' && !isOwner;
+                  
+                  return (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-blue-600 font-semibold text-lg">
+                              {details.display_name?.[0]?.toUpperCase() || '?'}
+                            </span>
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-gray-900">
+                              {details.display_name || 'Loading...'}
+                            </h3>
+                            <p className="text-sm text-gray-600">{details.email || 'Loading...'}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        {canManage ? (
+                          <select
+                            value={member.role}
+                            onChange={(e) => updateMemberRole(member.id, e.target.value)}
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 capitalize"
+                          >
+                            <option value="member">Member</option>
+                            <option value="viewer">Viewer</option>
+                            <option value="owner">Owner</option>
+                          </select>
+                        ) : (
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium capitalize ${
+                            isOwner 
+                              ? 'bg-purple-100 text-purple-800' 
+                              : member.role === 'member'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {member.role}
+                            {isOwner && ' 👑'}
+                          </span>
+                        )}
+                        
+                        {canManage && (
+                          <button
+                            onClick={() => removeMember(member.id, details.display_name)}
+                            className="px-3 py-1.5 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-md"
+                            title="Remove member"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">
+                <strong>Roles:</strong>
+                <span className="ml-2">👑 <strong>Owner</strong> - Full control</span>
+                <span className="ml-3">📝 <strong>Member</strong> - Can view and edit calendars</span>
+                <span className="ml-3">👁️ <strong>Viewer</strong> - Can only view calendars</span>
+              </p>
+            </div>
+          </div>
 
           {/* Generate Invite Section */}
           <div className="mb-8">
