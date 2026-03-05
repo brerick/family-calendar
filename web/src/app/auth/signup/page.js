@@ -37,7 +37,12 @@ function SignupForm() {
       email,
       password,
       options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
+        emailRedirectTo: inviteToken 
+          ? `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback?next=${encodeURIComponent(`/household/setup?invite=${inviteToken}`)}`
+          : `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
+        data: {
+          pending_invite: inviteToken || null
+        }
       },
     })
 
@@ -49,7 +54,11 @@ function SignupForm() {
 
     // Check if email confirmation is required
     if (data?.user && !data?.session) {
-      setError('Please check your email to confirm your account')
+      setError(
+        inviteToken 
+          ? '✅ Almost there! Check your email to confirm your account, then you\'ll be able to join the household.'
+          : 'Please check your email to confirm your account'
+      )
       setLoading(false)
       return
     }
