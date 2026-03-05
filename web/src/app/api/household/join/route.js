@@ -25,12 +25,25 @@ export async function POST(request) {
       .single()
 
     if (inviteError || !invite) {
+      console.error('Invite lookup error:', inviteError, 'Token:', token.trim())
+      console.error('Invite found:', invite)
       return NextResponse.json({ error: 'Invalid or expired invite' }, { status: 404 })
     }
 
     // Check if invite has expired
-    if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-      return NextResponse.json({ error: 'Invite has expired' }, { status: 400 })
+    const now = new Date()
+    const expiryDate = new Date(invite.expires_at)
+    console.log('Checking expiry:', {
+      now: now.toISOString(),
+      expiryDate: expiryDate.toISOString(),
+      expired: expiryDate < now
+    })
+    
+    if (invite.expires_at && expiryDate < now) {
+      return NextResponse.json({ 
+        error: 'Invite has expired',
+        details: `Expired on ${expiryDate.toLocaleString()}`
+      }, { status: 400 })
     }
 
     // Check if user is already a member

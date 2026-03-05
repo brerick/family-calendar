@@ -42,6 +42,13 @@ export async function POST(request) {
   // Calculate expiration
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + expires_days);
+  
+  console.log('Creating invite:', {
+    now: new Date().toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    expires_days,
+    token: token.substring(0, 10) + '...'
+  });
 
   // Insert invite
   const { data: invite, error } = await supabase
@@ -60,6 +67,11 @@ export async function POST(request) {
     console.error('Error creating invite:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  
+  console.log('Invite created successfully:', {
+    id: invite.id,
+    expires_at: invite.expires_at
+  });
 
   return NextResponse.json({ invite }, { status: 201 });
 }

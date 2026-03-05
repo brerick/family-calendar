@@ -67,6 +67,8 @@ function HouseholdSetupForm() {
     setLoading(true)
 
     try {
+      console.log('Attempting to join with token:', inviteToken)
+      
       const response = await fetch('/api/household/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,6 +76,8 @@ function HouseholdSetupForm() {
       })
 
       const data = await response.json()
+      
+      console.log('Join response:', { status: response.status, data })
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to join household')
@@ -82,6 +86,7 @@ function HouseholdSetupForm() {
       router.push('/dashboard')
       router.refresh()
     } catch (err) {
+      console.error('Join error:', err)
       setError(err.message)
       setLoading(false)
     }
