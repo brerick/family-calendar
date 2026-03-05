@@ -219,8 +219,6 @@ function HouseholdSetupForm() {
             </div>
           </div>
         )}
-          </div>
-        )}
 
         {mode === 'create' ? (
           <form className="mt-8 space-y-6" onSubmit={handleCreate}>
