@@ -26,8 +26,21 @@ export async function POST(request) {
 
     if (inviteError || !invite) {
       console.error('Invite lookup error:', inviteError, 'Token:', token.trim())
-      console.error('Invite found:', invite)
-      return NextResponse.json({ error: 'Invalid or expired invite' }, { status: 404 })
+      
+      // Provide more specific error messages
+      if (inviteError?.code === 'PGRST116') {
+        // No rows found - either invalid token or already redeemed
+        return NextResponse.json({ 
+          error: 'Invalid or already used invite. Please request a new invitation from the household owner.',
+          code: 'INVITE_NOT_FOUND' 
+        }, { status: 404 })
+      }
+      
+      return NextResponse.json({ 
+        error: 'Unable to retrieve invite. Please try again or request a new invitation.',
+        code: 'INVITE_ERROR',
+        details: inviteError?.message 
+      }, { status: 500 })
     }
 
     // Check if invite has expired
