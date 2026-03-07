@@ -18,8 +18,9 @@ export async function POST(request) {
   const body = await request.json();
   const { email, role = 'member' } = body;
 
-  // Validate inputs
-  if (!email || !email.includes('@')) {
+  // Trim and validate email
+  const trimmedEmail = email?.trim();
+  if (!trimmedEmail || !trimmedEmail.includes('@')) {
     return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
   }
 
@@ -82,7 +83,7 @@ export async function POST(request) {
   try {
     const { data: emailData, error: emailError } = await resend.emails.send({
       from: 'HomeOrbit Calendar <invites@booblie.com>',
-      to: email,
+      to: trimmedEmail,
       subject: `You're invited to join ${household.name || 'a household'} on HomeOrbit`,
       html: `
         <!DOCTYPE html>
@@ -146,7 +147,7 @@ export async function POST(request) {
     return NextResponse.json({ 
       invite,
       inviteUrl,
-      message: `Invitation email sent to ${email} successfully!`,
+      message: `Invitation email sent to ${trimmedEmail} successfully!`,
       emailId: emailData?.id,
     }, { status: 201 });
 

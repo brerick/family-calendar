@@ -170,7 +170,8 @@ export default function HouseholdSettingsPage() {
   };
 
   const sendEmailInvite = async () => {
-    if (!inviteEmail || !inviteEmail.includes('@')) {
+    const trimmedEmail = inviteEmail.trim();
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
       setError('Please enter a valid email address');
       return;
     }
@@ -182,7 +183,7 @@ export default function HouseholdSettingsPage() {
       const res = await fetch('/api/household/invites/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail, role: selectedRole }),
+        body: JSON.stringify({ email: trimmedEmail, role: selectedRole }),
       });
 
       if (!res.ok) {

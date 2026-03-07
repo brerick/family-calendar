@@ -17,24 +17,29 @@ function HouseholdSetupForm() {
   const [autoJoining, setAutoJoining] = useState(false)
   const router = useRouter()
 
-  // Check if user is authenticated when arriving with invite link
+  // Check if user is authenticated
   useEffect(() => {
     const checkAuth = async () => {
-      if (inviteParam) {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
-          // Redirect to signup with invite token preserved
-          router.push(`/auth/signup?invite=${inviteParam}`)
-          return
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        // Redirect to login, preserving invite token if present
+        if (inviteParam) {
+          router.push(`/auth/login?invite=${inviteParam}`)
         } else {
-          // User is authenticated with invite - auto-attempt to join
-          setAutoJoining(true)
-          await attemptAutoJoin(inviteParam)
-          setAutoJoining(false)
+          router.push('/auth/login')
         }
+        return
       }
+      
+      // User is authenticated with invite - auto-attempt to join
+      if (inviteParam) {
+        setAutoJoining(true)
+        await attemptAutoJoin(inviteParam)
+        setAutoJoining(false)
+      }
+      
       setCheckingAuth(false)
     }
     

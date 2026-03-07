@@ -34,7 +34,7 @@ function SignupForm() {
     setLoading(true)
 
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
       options: {
         emailRedirectTo: inviteToken 
