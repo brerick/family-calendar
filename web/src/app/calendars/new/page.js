@@ -124,7 +124,7 @@ export default function NewCalendarPage() {
               </div>
               <p className="mt-2 text-sm text-gray-500">
                 {type === 'manual' && 'Create a calendar and add events manually'}
-                {type === 'ical' && 'Subscribe to an external calendar feed (.ics URL)'}
+                {type === 'ical' && 'Subscribe to an external calendar feed (Apple Calendar, Google, Outlook, etc.)'}
                 {type === 'google' && 'Connect your Google Calendar via OAuth'}
               </p>
             </div>
@@ -165,15 +165,15 @@ export default function NewCalendarPage() {
                 </label>
                 <input
                   id="ics-url"
-                  type="url"
+                  type="text"
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="https://example.com/calendar.ics"
+                  placeholder="https://example.com/calendar.ics or webcal://..."
                   value={icsUrl}
                   onChange={(e) => setIcsUrl(e.target.value)}
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  Enter the URL of a public calendar feed (must end in .ics or support iCal format)
+                  Enter a calendar feed URL. Supports https://, http://, and webcal:// URLs from Apple Calendar and other iCal-compatible sources.
                 </p>
               </div>
             )}

@@ -1,6 +1,20 @@
--- Fix household_members insert policy to allow joining via invite
--- AND fix household_invites select policy to allow reading invites before joining
+-- Fix household_members and household_invites RLS policies
 -- Run this in Supabase SQL Editor
+
+-- Fix members_select policy
+-- Problem: Users can only see themselves, not other household members
+drop policy if exists "members_select" on household_members;
+
+create policy "members_select" on household_members
+  for select
+  using (
+    -- Can see all members of households you belong to
+    exists (
+      select 1 from household_members hm
+      where hm.household_id = household_members.household_id
+        and hm.user_id = auth.uid()
+    )
+  );
 
 -- Fix members_insert policy
 -- Drop existing policy

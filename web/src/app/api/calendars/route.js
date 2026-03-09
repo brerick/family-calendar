@@ -40,6 +40,20 @@ export async function GET() {
   }
 }
 
+// Helper function to normalize webcal:// URLs to https://
+function normalizeCalendarUrl(url) {
+  if (!url) return url
+  const trimmed = url.trim()
+  // Convert webcal:// to https:// and webcals:// to https://
+  if (trimmed.startsWith('webcal://')) {
+    return trimmed.replace('webcal://', 'https://')
+  }
+  if (trimmed.startsWith('webcals://')) {
+    return trimmed.replace('webcals://', 'https://')
+  }
+  return trimmed
+}
+
 export async function POST(request) {
   try {
     const supabase = await createClient()
@@ -79,7 +93,7 @@ export async function POST(request) {
     }
 
     if (type === 'ical') {
-      calendarData.ics_url = ics_url.trim()
+      calendarData.ics_url = normalizeCalendarUrl(ics_url)
     }
 
     const { data: calendar, error } = await supabase

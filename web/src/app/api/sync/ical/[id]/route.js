@@ -6,6 +6,20 @@ import ICAL from 'ical.js'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// Helper function to normalize webcal:// URLs to https://
+function normalizeCalendarUrl(url) {
+  if (!url) return url
+  const trimmed = url.trim()
+  // Convert webcal:// to https:// and webcals:// to https://
+  if (trimmed.startsWith('webcal://')) {
+    return trimmed.replace('webcal://', 'https://')
+  }
+  if (trimmed.startsWith('webcals://')) {
+    return trimmed.replace('webcals://', 'https://')
+  }
+  return trimmed
+}
+
 // Time window: 6 months ago to 18 months ahead
 const TIME_WINDOW_START = new Date()
 TIME_WINDOW_START.setMonth(TIME_WINDOW_START.getMonth() - 6)
@@ -70,9 +84,12 @@ export async function POST(request, { params }) {
     }
 
     try {
+      // Normalize URL (convert webcal:// to https://)
+      const normalizedUrl = normalizeCalendarUrl(calendar.ics_url)
+      
       // Fetch and parse ICS feed
-      console.log(`[iCal Sync] Fetching ICS feed from: ${calendar.ics_url}`)
-      const response = await fetch(calendar.ics_url)
+      console.log(`[iCal Sync] Fetching ICS feed from: ${normalizedUrl}`)
+      const response = await fetch(normalizedUrl)
       if (!response.ok) {
         throw new Error(`Failed to fetch ICS feed: ${response.statusText}`)
       }
