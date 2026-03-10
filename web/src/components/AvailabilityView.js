@@ -84,9 +84,8 @@ export default function AvailabilityView({ householdProfiles = [] }) {
     })
   }
 
-  const getMemberName = (userId) => {
-    const member = householdMembers.find(m => m.user_id === userId)
-    return member?.email?.split('@')[0] || 'Unknown'
+  const getProfileName = (profile) => {
+    return profile?.name || 'Unknown'
   }
 
   if (loading && !availability) {
@@ -186,7 +185,7 @@ export default function AvailabilityView({ householdProfiles = [] }) {
             <div className="mt-6 space-y-3">
               {availability.members.map((member) => (
                 <div
-                  key={member.user_id}
+                  key={member.profile_id || member.user_id}
                   className={`p-4 rounded-lg border-2 ${
                     member.available
                       ? 'border-green-200 bg-green-50'
@@ -200,7 +199,7 @@ export default function AvailabilityView({ householdProfiles = [] }) {
                       ) : (
                         <XCircle className="h-5 w-5 text-red-600" />
                       )}
-                      <span className="font-medium">{getMemberName(member.user_id)}</span>
+                      <span className="font-medium">{member.name}</span>
                       <span className={`text-sm px-2 py-1 rounded ${
                         member.available
                           ? 'bg-green-100 text-green-700'
@@ -235,9 +234,9 @@ export default function AvailabilityView({ householdProfiles = [] }) {
           </h3>
           <div className="space-y-4">
             {availability.members.map((member) => (
-              <div key={member.user_id} className="border rounded-lg p-4">
+              <div key={member.profile_id || member.user_id} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="font-medium text-lg">{getMemberName(member.user_id)}</span>
+                  <span className="font-medium text-lg">{member.name}</span>
                   <span className="text-sm text-gray-600">
                     {member.events.length} event{member.events.length !== 1 ? 's' : ''}
                   </span>

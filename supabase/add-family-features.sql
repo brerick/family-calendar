@@ -17,13 +17,14 @@ create table if not exists event_attendees (
   unique(event_id, user_id)
 );
 
-create index idx_event_attendees_event on event_attendees(event_id);
-create index idx_event_attendees_user on event_attendees(user_id);
+create index if not exists idx_event_attendees_event on event_attendees(event_id);
+create index if not exists idx_event_attendees_user on event_attendees(user_id);
 
 -- Enable RLS
 alter table event_attendees enable row level security;
 
 -- Household members can see attendees for their household's events
+drop policy if exists "attendees_select" on event_attendees;
 create policy "attendees_select" on event_attendees
   for select
   using (
@@ -37,11 +38,13 @@ create policy "attendees_select" on event_attendees
   );
 
 -- Users can update their own attendance status
+drop policy if exists "attendees_update_own" on event_attendees;
 create policy "attendees_update_own" on event_attendees
   for update
   using (user_id = auth.uid());
 
 -- Event creators can manage all attendees
+drop policy if exists "attendees_insert" on event_attendees;
 create policy "attendees_insert" on event_attendees
   for insert
   with check (
@@ -54,6 +57,7 @@ create policy "attendees_insert" on event_attendees
     )
   );
 
+drop policy if exists "attendees_delete" on event_attendees;
 create policy "attendees_delete" on event_attendees
   for delete
   using (
@@ -88,13 +92,14 @@ create table if not exists event_templates (
   updated_at timestamptz default now()
 );
 
-create index idx_templates_household on event_templates(household_id);
-create index idx_templates_category on event_templates(category);
+create index if not exists idx_templates_household on event_templates(household_id);
+create index if not exists idx_templates_category on event_templates(category);
 
 -- Enable RLS
 alter table event_templates enable row level security;
 
 -- Household members can view templates
+drop policy if exists "templates_select" on event_templates;
 create policy "templates_select" on event_templates
   for select
   using (
@@ -102,6 +107,7 @@ create policy "templates_select" on event_templates
   );
 
 -- Household members can create templates
+drop policy if exists "templates_insert" on event_templates;
 create policy "templates_insert" on event_templates
   for insert
   with check (
@@ -110,6 +116,7 @@ create policy "templates_insert" on event_templates
   );
 
 -- Template creator or household owners can update
+drop policy if exists "templates_update" on event_templates;
 create policy "templates_update" on event_templates
   for update
   using (
@@ -126,6 +133,7 @@ create policy "templates_update" on event_templates
   );
 
 -- Template creator or household owners can delete
+drop policy if exists "templates_delete" on event_templates;
 create policy "templates_delete" on event_templates
   for delete
   using (
@@ -162,14 +170,15 @@ create table if not exists meals (
   updated_at timestamptz default now()
 );
 
-create index idx_meals_household on meals(household_id);
-create index idx_meals_date on meals(date);
-create index idx_meals_assigned on meals(assigned_to);
+create index if not exists idx_meals_household on meals(household_id);
+create index if not exists idx_meals_date on meals(date);
+create index if not exists idx_meals_assigned on meals(assigned_to);
 
 -- Enable RLS
 alter table meals enable row level security;
 
 -- Household members can view meals
+drop policy if exists "meals_select" on meals;
 create policy "meals_select" on meals
   for select
   using (
@@ -177,6 +186,7 @@ create policy "meals_select" on meals
   );
 
 -- Household members can create meals
+drop policy if exists "meals_insert" on meals;
 create policy "meals_insert" on meals
   for insert
   with check (
@@ -185,6 +195,7 @@ create policy "meals_insert" on meals
   );
 
 -- Household members can update meals
+drop policy if exists "meals_update" on meals;
 create policy "meals_update" on meals
   for update
   using (
@@ -192,6 +203,7 @@ create policy "meals_update" on meals
   );
 
 -- Household members can delete meals
+drop policy if exists "meals_delete" on meals;
 create policy "meals_delete" on meals
   for delete
   using (
@@ -221,15 +233,16 @@ create table if not exists chores (
   updated_at timestamptz default now()
 );
 
-create index idx_chores_household on chores(household_id);
-create index idx_chores_assigned on chores(assigned_to);
-create index idx_chores_due on chores(due_date);
-create index idx_chores_completed on chores(completed);
+create index if not exists idx_chores_household on chores(household_id);
+create index if not exists idx_chores_assigned on chores(assigned_to);
+create index if not exists idx_chores_due on chores(due_date);
+create index if not exists idx_chores_completed on chores(completed);
 
 -- Enable RLS
 alter table chores enable row level security;
 
 -- Household members can view chores
+drop policy if exists "chores_select" on chores;
 create policy "chores_select" on chores
   for select
   using (
@@ -237,6 +250,7 @@ create policy "chores_select" on chores
   );
 
 -- Household members can create chores
+drop policy if exists "chores_insert" on chores;
 create policy "chores_insert" on chores
   for insert
   with check (
@@ -245,6 +259,7 @@ create policy "chores_insert" on chores
   );
 
 -- Household members can update chores
+drop policy if exists "chores_update" on chores;
 create policy "chores_update" on chores
   for update
   using (
@@ -252,6 +267,7 @@ create policy "chores_update" on chores
   );
 
 -- Household members can delete chores
+drop policy if exists "chores_delete" on chores;
 create policy "chores_delete" on chores
   for delete
   using (
@@ -276,13 +292,14 @@ create table if not exists shopping_list_items (
   created_at timestamptz default now()
 );
 
-create index idx_shopping_household on shopping_list_items(household_id);
-create index idx_shopping_checked on shopping_list_items(checked);
+create index if not exists idx_shopping_household on shopping_list_items(household_id);
+create index if not exists idx_shopping_checked on shopping_list_items(checked);
 
 -- Enable RLS
 alter table shopping_list_items enable row level security;
 
 -- Household members can view shopping list
+drop policy if exists "shopping_select" on shopping_list_items;
 create policy "shopping_select" on shopping_list_items
   for select
   using (
@@ -290,6 +307,7 @@ create policy "shopping_select" on shopping_list_items
   );
 
 -- Household members can add items
+drop policy if exists "shopping_insert" on shopping_list_items;
 create policy "shopping_insert" on shopping_list_items
   for insert
   with check (
@@ -298,6 +316,7 @@ create policy "shopping_insert" on shopping_list_items
   );
 
 -- Household members can update items
+drop policy if exists "shopping_update" on shopping_list_items;
 create policy "shopping_update" on shopping_list_items
   for update
   using (
@@ -305,6 +324,7 @@ create policy "shopping_update" on shopping_list_items
   );
 
 -- Household members can delete items
+drop policy if exists "shopping_delete" on shopping_list_items;
 create policy "shopping_delete" on shopping_list_items
   for delete
   using (
