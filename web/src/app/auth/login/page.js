@@ -48,12 +48,10 @@ function LoginForm() {
       return
     }
 
-    // Use hard redirect to trigger middleware which will set cookies
-    if (inviteToken) {
-      window.location.href = `/household/setup?invite=${inviteToken}`
-    } else {
-      window.location.href = '/dashboard'
-    }
+    // Force a page reload to ensure middleware processes the session
+    window.location.href = inviteToken
+      ? `/household/setup?invite=${inviteToken}`
+      : '/dashboard'
   }
 
   return (

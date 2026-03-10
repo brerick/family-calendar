@@ -25,9 +25,17 @@ export async function updateSession(request) {
   )
 
   // Refresh session if needed
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
+
+  // Log auth state for debugging
+  console.log('[Middleware]', {
+    path,
+    hasUser: !!user,
+    error: error?.message,
+    cookieCount: request.cookies.getAll().length,
+  })
 
   // Skip auth checks for API routes, auth routes, and RSC routes
   if (path.startsWith('/api') || path.startsWith('/auth') || path.includes('_rsc')) {
@@ -42,6 +50,7 @@ export async function updateSession(request) {
   if (isProtectedRoute && !user) {
     const isSetupWithInvite = path === '/household/setup' && request.nextUrl.searchParams.has('invite')
     if (!isSetupWithInvite) {
+      console.log('[Middleware] Redirecting to login - no user found')
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
   }
