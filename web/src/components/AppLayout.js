@@ -12,6 +12,18 @@ export default function AppLayout({ children }) {
   useEffect(() => {
     fetchUserProfile()
     fetchCalendars()
+
+    // Listen for profile updates
+    const handleProfileUpdate = () => {
+      fetchUserProfile()
+      fetchCalendars()
+    }
+    
+    window.addEventListener('profile-updated', handleProfileUpdate)
+    
+    return () => {
+      window.removeEventListener('profile-updated', handleProfileUpdate)
+    }
   }, [])
 
   const fetchUserProfile = async () => {

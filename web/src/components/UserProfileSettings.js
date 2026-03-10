@@ -45,13 +45,25 @@ export default function UserProfileSettings() {
         body: JSON.stringify(formData)
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setProfile(data.profile)
-        setEditing(false)
+      if (!response.ok) {
+        const errorData = await response.json()
+        alert(`Failed to save: ${errorData.error || 'Unknown error'}`)
+        console.error('Save error:', errorData)
+        return
       }
+
+      const data = await response.json()
+      setProfile(data.profile)
+      setEditing(false)
+      
+      // Show success message
+      alert('Profile updated successfully!')
+      
+      // Trigger a re-fetch of user data in the parent component
+      window.dispatchEvent(new Event('profile-updated'))
     } catch (error) {
       console.error('Error saving profile:', error)
+      alert('Failed to save changes. Please try again.')
     } finally {
       setSaving(false)
     }
