@@ -32,16 +32,12 @@ function LoginForm() {
       return
     }
 
-    // Wait a moment for session to be established
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // If there's an invite token, redirect to setup page with it
+    // Redirect after successful login
     if (inviteToken) {
       router.push(`/household/setup?invite=${inviteToken}`)
     } else {
       router.push('/dashboard')
     }
-    router.refresh()
   }
 
   return (

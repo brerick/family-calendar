@@ -16,18 +16,10 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              // Ensure cookies work in production
-              cookieStore.set(name, value, {
-                ...options,
-                sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production',
-              })
+              cookieStore.set(name, value, options)
             })
           } catch (error) {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-            console.error('Error setting cookies:', error)
+            // Ignore cookie setting errors in read-only contexts
           }
         },
       },

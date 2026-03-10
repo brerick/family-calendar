@@ -2,13 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
 export async function updateSession(request) {
-  const path = request.nextUrl.pathname
-
-  // Skip auth processing entirely for auth routes and API routes
-  if (path.startsWith('/auth') || path.startsWith('/api') || path.includes('_rsc')) {
-    return NextResponse.next()
-  }
-
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -22,41 +15,23 @@ export async function updateSession(request) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({name, value, options }) => {
-            const cookieOptions = {
-              ...options,
-              sameSite: 'lax',
-              secure: process.env.NODE_ENV === 'production',
-              path: '/',
-            }
+          cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value)
-            supabaseResponse.cookies.set(name, value, cookieOptions)
+            supabaseResponse.cookies.set(name, value, options)
           })
         },
       },
     }
   )
 
-  // IMPORTANT: Avoid writing any logic between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
+  // Refresh session if needed
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // This will refresh the session if expired - validating the auth token
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  const path = request.nextUrl.pathname
 
-  // If we get a session_not_found error, clear cookies and redirect to login
-  if (authError && authError.message?.includes('session_not_found')) {
-    const response = NextResponse.redirect(new URL('/auth/login', request.url))
-    
-    // Clear all Supabase cookies
-    const cookies = request.cookies.getAll()
-    cookies.forEach(cookie => {
-      if (cookie.name.includes('supabase') || cookie.name.includes('sb-')) {
-        response.cookies.delete(cookie.name)
-      }
-    })
-    
-    return response
+  // Skip auth checks for API routes, auth routes, and RSC routes
+  if (path.startsWith('/api') || path.startsWith('/auth') || path.includes('_rsc')) {
+    return supabaseResponse
   }
 
   // Protected routes that require authentication
@@ -64,16 +39,10 @@ export async function updateSession(request) {
   const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
 
   // If accessing protected route without auth, redirect to login
-  // Exception: /household/setup can be accessed with invite parameter
   if (isProtectedRoute && !user) {
     const isSetupWithInvite = path === '/household/setup' && request.nextUrl.searchParams.has('invite')
     if (!isSetupWithInvite) {
-      const redirectUrl = new URL('/auth/login', request.url)
-      // Preserve the original destination
-      if (path !== '/household/setup') {
-        redirectUrl.searchParams.set('next', path)
-      }
-      return NextResponse.redirect(redirectUrl)
+      return NextResponse.redirect(new URL('/auth/login', request.url))
     }
   }
 
