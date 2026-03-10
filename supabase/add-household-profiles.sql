@@ -25,8 +25,8 @@ create table if not exists household_profiles (
   )
 );
 
-create index idx_household_profiles_household on household_profiles(household_id);
-create index idx_household_profiles_user on household_profiles(user_id) where user_id is not null;
+create index if not exists idx_household_profiles_household on household_profiles(household_id);
+create index if not exists idx_household_profiles_user on household_profiles(user_id) where user_id is not null;
 
 -- Enable RLS
 alter table household_profiles enable row level security;
@@ -74,12 +74,13 @@ insert into household_profiles (household_id, user_id, name, is_auth_user, creat
 select 
   hm.household_id,
   hm.user_id,
-  coalesce(au.email, 'User'),
+  coalesce(up.display_name, au.email, 'User'),
   true,
   hm.user_id, -- Self-created for existing members
   coalesce(hm.created_at, now())
 from household_members hm
 inner join auth.users au on au.id = hm.user_id
+left join user_profiles up on up.id = hm.user_id
 where not exists (
   select 1 from household_profiles hp
   where hp.household_id = hm.household_id
@@ -149,10 +150,11 @@ begin
   select 
     new.household_id,
     new.user_id,
-    coalesce(au.email, 'User'),
+    coalesce(up.display_name, au.email, 'User'),
     true,
     new.user_id
   from auth.users au
+  left join user_profiles up on up.id = au.id
   where au.id = new.user_id
   on conflict (household_id, user_id) do nothing;
   

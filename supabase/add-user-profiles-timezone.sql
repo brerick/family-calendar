@@ -9,6 +9,9 @@ create table if not exists user_profiles (
   updated_at timestamptz default now()
 );
 
+-- Add display_name column if it doesn't exist
+alter table user_profiles add column if not exists display_name text;
+
 -- Enable RLS on user_profiles
 alter table user_profiles enable row level security;
 
@@ -35,9 +38,15 @@ language plpgsql
 security definer
 as $$
 begin
-  insert into public.user_profiles (id, timezone)
+  insert into public.user_profiles (id, display_name, timezone)
   values (
     new.id,
+    -- Try to get name from metadata, fallback to email username
+    coalesce(
+      new.raw_user_meta_data->>'display_name',
+      new.raw_user_meta_data->>'name',
+      split_part(new.email, '@', 1)
+    ),
     coalesce(new.raw_user_meta_data->>'timezone', 'America/Los_Angeles')
   );
   return new;
@@ -51,9 +60,29 @@ create trigger on_auth_user_created
   for each row
   execute function public.handle_new_user();
 
--- Backfill existing users with default timezone
-insert into user_profiles (id, timezone)
-select id, 'America/Los_Angeles'
-from auth.users
-where id not in (select id from user_profiles)
+-- Backfill existing users with default timezone and display name
+insert into user_profiles (id, display_name, timezone)
+select 
+  au.id,
+  coalesce(
+    au.raw_user_meta_data->>'display_name',
+    au.raw_user_meta_data->>'name',
+    split_part(au.email, '@', 1),
+    'User'
+  ),
+  'America/Los_Angeles'
+from auth.users au
+where au.id not in (select id from user_profiles)
 on conflict (id) do nothing;
+
+-- Update existing profiles that don't have display_name
+update user_profiles up
+set display_name = coalesce(
+  au.raw_user_meta_data->>'display_name',
+  au.raw_user_meta_data->>'name',
+  split_part(au.email, '@', 1),
+  'User'
+)
+from auth.users au
+where up.id = au.id
+  and up.display_name is null;

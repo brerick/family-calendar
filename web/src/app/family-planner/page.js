@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { Home, ClipboardList, Utensils, Calendar, Users } from 'lucide-react'
+import { ClipboardList, Utensils, Calendar, Users } from 'lucide-react'
 import AvailabilityView from '@/components/AvailabilityView'
 import TemplateManager from '@/components/TemplateManager'
 import MealPlanner from '@/components/MealPlanner'
@@ -32,7 +31,7 @@ export default function FamilyPlannerPage() {
   const tabs = [
     { id: 'members', label: 'Members', icon: Users },
     { id: 'availability', label: 'Availability', icon: Calendar },
-    { id: 'templates', label: 'Templates', icon: Home },
+    { id: 'templates', label: 'Templates', icon: Calendar },
     { id: 'meals', label: 'Meal Planner', icon: Utensils },
     { id: 'chores', label: 'Chores', icon: ClipboardList },
   ]
@@ -40,42 +39,36 @@ export default function FamilyPlannerPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Home className="h-6 w-6 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Family Planner</h1>
-            </div>
-            <Link
-              href="/dashboard"
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              ← Back to Dashboard
-            </Link>
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="px-4 sm:px-6 lg:px-8 py-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Family Planner</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Coordinate schedules, plan meals, and manage household tasks
+            </p>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
+            <nav className="flex -mb-px overflow-x-auto">
               {tabs.map((tab) => {
                 const Icon = tab.icon
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                       activeTab === tab.id
                         ? 'border-blue-600 text-blue-600'
                         : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                     }`}
                   >
                     <Icon className="h-5 w-5" />
-                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span>{tab.label}</span>
                   </button>
                 )
               })}
