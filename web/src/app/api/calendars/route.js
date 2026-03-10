@@ -4,7 +4,15 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError) {
+      console.error('Auth error in GET /api/calendars:', authError)
+      return NextResponse.json({ 
+        error: 'Authentication failed', 
+        details: authError.message 
+      }, { status: 401 })
+    }
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -7,7 +7,15 @@ export async function GET(request) {
     const supabase = await createClient()
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    if (authError) {
+      console.error('Auth error in GET /api/users/profile:', authError)
+      return NextResponse.json({ 
+        error: 'Authentication failed', 
+        details: authError.message 
+      }, { status: 401 })
+    }
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

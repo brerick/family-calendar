@@ -29,7 +29,22 @@ export async function updateSession(request) {
   // issues with users being randomly logged out.
 
   // This will refresh the session if expired - validating the auth token
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  // If we get a session_not_found error, clear cookies and redirect to login
+  if (authError && authError.message?.includes('session_not_found')) {
+    const response = NextResponse.redirect(new URL('/auth/login', request.url))
+    
+    // Clear all Supabase cookies
+    const cookies = request.cookies.getAll()
+    cookies.forEach(cookie => {
+      if (cookie.name.includes('supabase') || cookie.name.includes('sb-')) {
+        response.cookies.delete(cookie.name)
+      }
+    })
+    
+    return response
+  }
 
   const path = request.nextUrl.pathname
 
