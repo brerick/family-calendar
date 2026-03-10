@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Home, Calendar, Users, RefreshCw } from 'lucide-react'
+import { Home as HomeIcon, Calendar, Users, RefreshCw } from 'lucide-react'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -25,7 +25,7 @@ export default async function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <Home className="h-6 w-6 text-blue-600" />
+              <HomeIcon className="h-6 w-6 text-blue-600" />
               <h1 className="text-2xl font-bold text-gray-900">
                 HomeOrbit
               </h1>
