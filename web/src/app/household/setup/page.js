@@ -144,19 +144,38 @@ function HouseholdSetupForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {inviteParam ? 'Join household' : 'Set up your household'}
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {inviteParam 
-              ? 'You\'ve been invited to join a household' 
-              : 'Create a new household or join an existing one'
-            }
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header with navigation */}
+      <div className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <a href="/" className="text-xl font-bold text-gray-900">
+              🏠 HomeOrbit
+            </a>
+            <a
+              href="/auth/signout"
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              Sign Out
+            </a>
+          </div>
         </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+              {inviteParam ? 'Join household' : 'Set up your household'}
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              {inviteParam 
+                ? 'You\'ve been invited to join a household' 
+                : 'Create a new household or join an existing one'
+              }
+            </p>
+          </div>
 
         {!inviteParam && (
           <div className="flex rounded-md shadow-sm" role="group">
@@ -278,6 +297,7 @@ function HouseholdSetupForm() {
             </button>
           </form>
         )}
+        </div>
       </div>
     </div>
   )
