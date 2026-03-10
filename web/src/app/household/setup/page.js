@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { Home } from 'lucide-react'
 
 function HouseholdSetupForm() {
   const searchParams = useSearchParams()
@@ -149,8 +150,9 @@ function HouseholdSetupForm() {
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <a href="/" className="text-xl font-bold text-gray-900">
-              🏠 HomeOrbit
+            <a href="/" className="flex items-center gap-2 text-xl font-bold text-gray-900">
+              <Home className="h-5 w-5 text-blue-600" />
+              <span>HomeOrbit</span>
             </a>
             <a
               href="/auth/signout"

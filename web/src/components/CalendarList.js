@@ -10,6 +10,9 @@ export default function CalendarList({ calendars }) {
   const [syncing, setSyncing] = useState(null)
   const [toggling, setToggling] = useState(null)
   const [eventCounts, setEventCounts] = useState({})
+  const [editingCalendar, setEditingCalendar] = useState(null)
+  const [editForm, setEditForm] = useState({ name: '', ics_url: '' })
+  const [saving, setSaving] = useState(false)
   const router = useRouter()
 
   // Fetch event counts for each calendar
@@ -102,6 +105,44 @@ export default function CalendarList({ calendars }) {
       alert('Failed to toggle calendar visibility')
     } finally {
       setToggling(null)
+    }
+  }
+
+  const handleEdit = (calendar) => {
+    setEditingCalendar(calendar)
+    setEditForm({
+      name: calendar.name,
+      ics_url: calendar.ics_url || ''
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editForm.name.trim()) {
+      alert('Calendar name is required')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/calendars/${editingCalendar.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update calendar')
+      }
+
+      setEditingCalendar(null)
+      router.refresh()
+    } catch (error) {
+      console.error('Error updating calendar:', error)
+      alert('Failed to update calendar')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -212,6 +253,14 @@ export default function CalendarList({ calendars }) {
                     <span className="hidden sm:inline">Sync</span>
                   </button>
                 )}
+                <button
+                  onClick={() => handleEdit(calendar)}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  title="Edit calendar"
+                >
+                  <Edit className="h-3 w-3" />
+                  <span className="hidden sm:inline">Edit</span>
+                </button>
                 {calendar.type === 'manual' && (
                   <Link
                     href={`/calendars/${calendar.id}/events/new`}
@@ -300,6 +349,67 @@ export default function CalendarList({ calendars }) {
             ))}
           </div>
         </details>
+      )}
+
+      {/* Edit Modal */}
+      {editingCalendar && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">Edit Calendar</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Calendar Name
+                </label>
+                <input
+                  id="edit-name"
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Calendar name"
+                />
+              </div>
+
+              {editingCalendar.type === 'ical' && (
+                <div>
+                  <label htmlFor="edit-url" className="block text-sm font-medium text-gray-700 mb-1">
+                    Calendar Feed URL
+                  </label>
+                  <input
+                    id="edit-url"
+                    type="text"
+                    value={editForm.ics_url}
+                    onChange={(e) => setEditForm({ ...editForm, ics_url: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="https://... or webcal://..."
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Supports https://, http://, and webcal:// URLs
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleSaveEdit}
+                disabled={saving}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                onClick={() => setEditingCalendar(null)}
+                disabled={saving}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

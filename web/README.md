@@ -33,13 +33,16 @@
 ### 3. Configure Environment Variables
 
 1. In Supabase dashboard, go to **Settings** → **API**
-2. Copy your **Project URL** and **anon/public key**
+2. Copy your **Project URL**, **anon/public key**, and **service_role key**
 3. Edit `web/.env.local` and replace the placeholders:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 ```
+
+> ⚠️ **Important**: The service role key should be kept secret and never exposed to the client. It's only used in server-side API routes for system operations like syncing calendars.
 
 ### 4. Run the Application
 

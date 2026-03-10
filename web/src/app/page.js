@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { Home, Calendar, Users, RefreshCw } from 'lucide-react'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -23,9 +24,12 @@ export default async function Home() {
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">
-              🏠 HomeOrbit
-            </h1>
+            <div className="flex items-center gap-2">
+              <Home className="h-6 w-6 text-blue-600" />
+              <h1 className="text-2xl font-bold text-gray-900">
+                HomeOrbit
+              </h1>
+            </div>
             <div className="flex gap-3">
               {user ? (
                 <>
@@ -134,21 +138,27 @@ export default async function Home() {
         {/* Features */}
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="bg-white rounded-lg shadow-md p-6 text-center">
-            <div className="text-4xl mb-4">📅</div>
+            <div className="flex justify-center mb-4">
+              <Calendar className="h-12 w-12 text-blue-600" />
+            </div>
             <h3 className="text-xl font-semibold mb-2">Multiple Sources</h3>
             <p className="text-gray-600">
               Connect Google Calendar, Apple Calendar, and iCal feeds all in one place
             </p>
           </div>
           <div className="bg-white rounded-lg shadow-md p-6 text-center">
-            <div className="text-4xl mb-4">👨‍👩‍👧‍👦</div>
+            <div className="flex justify-center mb-4">
+              <Users className="h-12 w-12 text-blue-600" />
+            </div>
             <h3 className="text-xl font-semibold mb-2">Family Sharing</h3>
             <p className="text-gray-600">
               Invite family members and manage everyone's schedules together
             </p>
           </div>
           <div className="bg-white rounded-lg shadow-md p-6 text-center">
-            <div className="text-4xl mb-4">🔄</div>
+            <div className="flex justify-center mb-4">
+              <RefreshCw className="h-12 w-12 text-blue-600" />
+            </div>
             <h3 className="text-xl font-semibold mb-2">Auto Sync</h3>
             <p className="text-gray-600">
               Events automatically sync from your connected calendars

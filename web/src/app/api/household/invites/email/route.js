@@ -95,7 +95,8 @@ export async function POST(request) {
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="color: white; margin: 0;">🏠 You've Been Invited!</h1>
+              <h1 style="color: white; margin: 0;">You've Been Invited!</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Join a household on HomeOrbit</p>
             </div>
             
             <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #e5e7eb;">

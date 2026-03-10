@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import ICAL from 'ical.js'
 
@@ -43,7 +43,7 @@ export async function POST(request, { params }) {
 
     console.log('[iCal Sync] Starting sync for calendar:', calendarId)
 
-    // Get calendar details
+    // Verify user has access to this calendar (using regular client with RLS)
     const { data: calendar, error: calendarError } = await supabase
       .from('calendars')
       .select('*')
@@ -67,9 +67,12 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'No ICS URL configured' }, { status: 400 })
     }
 
+    // Use service role client for sync operations (bypasses RLS)
+    const serviceClient = createServiceClient()
+
     // Record sync start
     const syncStartTime = new Date().toISOString()
-    const { data: syncRun, error: syncRunError } = await supabase
+    const { data: syncRun, error: syncRunError } = await serviceClient
       .from('sync_runs')
       .insert({
         calendar_id: calendarId,
@@ -125,7 +128,7 @@ export async function POST(request, { params }) {
           location: event.location || null,
           start_time: startDate.toISOString(),
           end_time: endDate ? endDate.toISOString() : startDate.toISOString(),
-          all_day: !event.startDate.isDate ? false : true,
+          all_day: event.startDate?.isDate === true,
           status: event.status === 'CANCELLED' ? 'cancelled' : 'confirmed',
           recurrence_rule: event.isRecurring() ? vevent.getFirstPropertyValue('rrule')?.toString() : null,
           raw_payload: vevent.toJSON(),
@@ -148,7 +151,7 @@ export async function POST(request, { params }) {
       let upsertErrors = 0
       for (const event of parsedEvents) {
         // Check if event exists
-        const { data: existing } = await supabase
+        const { data: existing } = await serviceClient
           .from('events')
           .select('id')
           .eq('calendar_id', event.calendar_id)
@@ -159,14 +162,14 @@ export async function POST(request, { params }) {
         let error
         if (existing) {
           // Update existing event
-          const result = await supabase
+          const result = await serviceClient
             .from('events')
             .update(event)
             .eq('id', existing.id)
           error = result.error
         } else {
           // Insert new event
-          const result = await supabase
+          const result = await serviceClient
             .from('events')
             .insert(event)
           error = result.error
@@ -183,7 +186,7 @@ export async function POST(request, { params }) {
       console.log(`[iCal Sync] Upserted ${eventsUpserted} events, ${upsertErrors} errors`)
 
       // Mark removed events as cancelled
-      const { data: existingEvents } = await supabase
+      const { data: existingEvents } = await serviceClient
         .from('events')
         .select('id, external_event_id')
         .eq('calendar_id', calendarId)
@@ -196,7 +199,7 @@ export async function POST(request, { params }) {
 
         if (removedEvents.length > 0) {
           for (const removedEvent of removedEvents) {
-            await supabase
+            await serviceClient
               .from('events')
               .update({ status: 'cancelled' })
               .eq('id', removedEvent.id)
@@ -206,7 +209,7 @@ export async function POST(request, { params }) {
       }
 
       // Update sync run as completed
-      await supabase
+      await serviceClient
         .from('sync_runs')
         .update({
           status: 'completed',
@@ -216,7 +219,7 @@ export async function POST(request, { params }) {
         .eq('id', syncRun.id)
 
       // Update calendar last_synced_at
-      await supabase
+      await serviceClient
         .from('calendars')
         .update({ last_synced_at: new Date().toISOString() })
         .eq('id', calendarId)
@@ -231,7 +234,7 @@ export async function POST(request, { params }) {
 
       // Update sync run as failed
       if (syncRun) {
-        await supabase
+        await serviceClient
           .from('sync_runs')
           .update({
             status: 'failed',
