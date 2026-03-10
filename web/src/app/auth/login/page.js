@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -15,6 +15,22 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  // Check if already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        // Already logged in, redirect
+        if (inviteToken) {
+          window.location.href = `/household/setup?invite=${inviteToken}`
+        } else {
+          window.location.href = '/dashboard'
+        }
+      }
+    }
+    checkSession()
+  }, [inviteToken])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -32,11 +48,11 @@ function LoginForm() {
       return
     }
 
-    // Redirect after successful login
+    // Use hard redirect to trigger middleware which will set cookies
     if (inviteToken) {
-      router.push(`/household/setup?invite=${inviteToken}`)
+      window.location.href = `/household/setup?invite=${inviteToken}`
     } else {
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     }
   }
 
