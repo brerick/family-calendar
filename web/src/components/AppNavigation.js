@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
@@ -10,11 +11,16 @@ import {
   LogOut,
   ClipboardList,
   Utensils,
-  User
+  User,
+  ChevronDown,
+  ChevronRight,
+  Plus
 } from 'lucide-react'
+import CalendarList from '@/components/CalendarList'
 
-export default function AppNavigation({ userName }) {
+export default function AppNavigation({ userName, calendars = [], onCalendarUpdate }) {
   const pathname = usePathname()
+  const [calendarsExpanded, setCalendarsExpanded] = useState(true)
 
   const navItems = [
     {
@@ -107,7 +113,7 @@ export default function AppNavigation({ userName }) {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4">
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
         <div className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon
@@ -132,6 +138,29 @@ export default function AppNavigation({ userName }) {
             )
           })}
         </div>
+
+        {/* My Calendars Section */}
+        {calendars.length > 0 && (
+          <div className="mt-6">
+            <button
+              onClick={() => setCalendarsExpanded(!calendarsExpanded)}
+              className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:bg-gray-50 rounded-lg"
+            >
+              <span>My Calendars ({calendars.length})</span>
+              {calendarsExpanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+            </button>
+            
+            {calendarsExpanded && (
+              <div className="mt-2">
+                <CalendarList calendars={calendars} compact />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="mt-8">

@@ -6,10 +6,12 @@ import AppNavigation from '@/components/AppNavigation'
 
 export default function AppLayout({ children }) {
   const [userName, setUserName] = useState(null)
+  const [calendars, setCalendars] = useState([])
   const pathname = usePathname()
 
   useEffect(() => {
     fetchUserProfile()
+    fetchCalendars()
   }, [])
 
   const fetchUserProfile = async () => {
@@ -24,6 +26,18 @@ export default function AppLayout({ children }) {
     }
   }
 
+  const fetchCalendars = async () => {
+    try {
+      const response = await fetch('/api/calendars')
+      if (response.ok) {
+        const data = await response.json()
+        setCalendars(data.calendars || [])
+      }
+    } catch (error) {
+      console.error('Error fetching calendars:', error)
+    }
+  }
+
   // Don't show sidebar on auth pages
   if (pathname.startsWith('/auth') || pathname.startsWith('/household/setup') ||pathname.startsWith('/household/join')) {
     return <>{children}</>
@@ -31,7 +45,7 @@ export default function AppLayout({ children }) {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <AppNavigation userName={userName} />
+      <AppNavigation userName={userName} calendars={calendars} onCalendarUpdate={fetchCalendars} />
       <main className="flex-1 overflow-auto">
         {children}
       </main>

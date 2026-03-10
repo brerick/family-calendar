@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, RefreshCw, Trash2, Plus, Edit, Calendar } from 'lucide-react'
 
-export default function CalendarList({ calendars }) {
+export default function CalendarList({ calendars, compact = false }) {
   const [deleting, setDeleting] = useState(null)
   const [syncing, setSyncing] = useState(null)
   const [toggling, setToggling] = useState(null)
@@ -181,6 +181,56 @@ export default function CalendarList({ calendars }) {
   const visibleCalendars = calendars.filter(cal => cal.visible !== false)
   const hiddenCalendars = calendars.filter(cal => cal.visible === false)
 
+  // Compact view for sidebar
+  if (compact) {
+    return (
+      <div className="space-y-1">
+        {visibleCalendars.map((calendar) => (
+          <button
+            key={calendar.id}
+            onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
+            disabled={toggling === calendar.id}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-left"
+            title={`Toggle ${calendar.name}`}
+          >
+            <div
+              className="w-3 h-3 rounded flex-shrink-0"
+              style={{ backgroundColor: calendar.color }}
+            />
+            <span className="truncate flex-1">{calendar.name}</span>
+            {toggling === calendar.id ? (
+              <RefreshCw className="h-3 w-3 animate-spin text-gray-400 flex-shrink-0" />
+            ) : null}
+          </button>
+        ))}
+        
+        {hiddenCalendars.length > 0 && (
+          <details className="group/details">
+            <summary className="cursor-pointer list-none px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
+              <span className="transform transition-transform group-open/details:rotate-90">▸</span>
+              Hidden ({hiddenCalendars.length})
+            </summary>
+            <div className="space-y-1 mt-1">
+              {hiddenCalendars.map((calendar) => (
+                <button
+                  key={calendar.id}
+                  onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
+                  disabled={toggling === calendar.id}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 rounded-lg transition-colors text-left opacity-60"
+                  title={`Show ${calendar.name}`}
+                >
+                  <EyeOff className="h-3 w-3 flex-shrink-0" style={{ color: calendar.color }} />
+                  <span className="truncate flex-1">{calendar.name}</span>
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
+      </div>
+    )
+  }
+
+  // Full view for dashboard
   return (
     <div className="space-y-3">
       {/* Visible Calendars */}
