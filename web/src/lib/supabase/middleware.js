@@ -2,6 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
 export async function updateSession(request) {
+  const path = request.nextUrl.pathname
+
+  // Skip auth processing entirely for auth routes and API routes
+  if (path.startsWith('/auth') || path.startsWith('/api') || path.includes('_rsc')) {
+    return NextResponse.next()
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -52,20 +59,9 @@ export async function updateSession(request) {
     return response
   }
 
-  const path = request.nextUrl.pathname
-
-  // Don't redirect on API routes or RSC routes
-  if (path.startsWith('/api') || path.includes('_rsc')) {
-    return supabaseResponse
-  }
-
   // Protected routes that require authentication
   const protectedRoutes = ['/dashboard', '/calendars', '/events', '/household', '/profile', '/family-planner']
   const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
-  
-  // Auth routes
-  const authRoutes = ['/auth/login', '/auth/signup']
-  const isAuthRoute = authRoutes.some(route => path.startsWith(route))
 
   // If accessing protected route without auth, redirect to login
   // Exception: /household/setup can be accessed with invite parameter
@@ -79,16 +75,6 @@ export async function updateSession(request) {
       }
       return NextResponse.redirect(redirectUrl)
     }
-  }
-
-  // If accessing auth routes while logged in, redirect to dashboard
-  if (isAuthRoute && user) {
-    // Check if there's an invite parameter - if so, redirect to setup
-    const inviteToken = request.nextUrl.searchParams.get('invite')
-    if (inviteToken) {
-      return NextResponse.redirect(new URL(`/household/setup?invite=${inviteToken}`, request.url))
-    }
-    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return supabaseResponse
