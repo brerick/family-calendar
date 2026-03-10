@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Menu, X, LogOut, Settings } from 'lucide-react';
 import CalendarList from '@/components/CalendarList';
 import CalendarView from '@/components/CalendarView';
+import TimezoneIndicator from '@/components/TimezoneIndicator';
 
 export default function DashboardLayout({ household, user, calendars, events, membershipRole }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,6 +29,7 @@ export default function DashboardLayout({ household, user, calendars, events, me
               </h1>
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
+              <TimezoneIndicator className="hidden md:flex" />
               <span className="hidden sm:inline text-sm text-gray-600 truncate max-w-[150px] md:max-w-none">
                 {user.email}
               </span>
