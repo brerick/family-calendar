@@ -15,22 +15,28 @@ export async function updateSession(request) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value)
             supabaseResponse.cookies.set(name, value, options)
-          )
+          })
         },
       },
     }
   )
 
-  // refreshing the auth token
+  // IMPORTANT: Avoid writing any logic between createServerClient and
+  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
+  // issues with users being randomly logged out.
+
+  // This will refresh the session if expired - validating the auth token
   const { data: { user } } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
+
+  // Don't redirect on API routes or RSC routes
+  if (path.startsWith('/api') || path.includes('_rsc')) {
+    return supabaseResponse
+  }
 
   // Protected routes that require authentication
   const protectedRoutes = ['/dashboard', '/calendars', '/events', '/household', '/profile', '/family-planner']
