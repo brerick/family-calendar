@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { headers } from 'next/headers'
 import DashboardLayout from '@/components/DashboardLayout'
+
+const SYNC_STALE_MINS = 60 // Re-sync external calendars at most once per hour
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -35,6 +38,19 @@ export default async function DashboardPage() {
     .select('*')
     .eq('household_id', membership.household_id)
     .order('created_at', { ascending: true })
+
+  // Background-sync any stale external calendars (replaces cron).
+  // Fire-and-forget: we do NOT await so the page renders immediately.
+  const hasExternalCalendars = calendars?.some(c => c.type === 'ical' || c.type === 'google')
+  if (hasExternalCalendars) {
+    const reqHeaders = await headers()
+    const host = reqHeaders.get('host')
+    const proto = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+    const syncUrl = `${proto}://${host}/api/sync/all?stale_mins=${SYNC_STALE_MINS}`
+    fetch(syncUrl, { method: 'POST' }).catch(err =>
+      console.error('[Dashboard] Background sync trigger failed:', err)
+    )
+  }
 
   // Get visible calendar IDs
   const visibleCalendarIds = calendars?.filter(c => c.visible !== false).map(c => c.id) || []

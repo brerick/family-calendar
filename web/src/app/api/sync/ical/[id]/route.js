@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import ICAL from 'ical.js'
 
@@ -38,13 +38,16 @@ function isWithinTimeWindow(start, end) {
 
 export async function POST(request, { params }) {
   try {
-    const supabase = await createClient()
     const { id: calendarId } = await params
 
     console.log('[iCal Sync] Starting sync for calendar:', calendarId)
 
-    // Verify user has access to this calendar (using regular client with RLS)
-    const { data: calendar, error: calendarError } = await supabase
+    // Always use service client — this route is triggered by cron, internal server
+    // fetches (from calendar creation), and browser requests. Only the service client
+    // works reliably for all callers since cookie-based auth is not always present.
+    const serviceClient = createServiceClient()
+
+    const { data: calendar, error: calendarError } = await serviceClient
       .from('calendars')
       .select('*')
       .eq('id', calendarId)
@@ -66,9 +69,6 @@ export async function POST(request, { params }) {
     if (!calendar.ics_url) {
       return NextResponse.json({ error: 'No ICS URL configured' }, { status: 400 })
     }
-
-    // Use service role client for sync operations (bypasses RLS)
-    const serviceClient = createServiceClient()
 
     // Record sync start
     const syncStartTime = new Date().toISOString()

@@ -49,7 +49,7 @@ export async function GET(request) {
             .from('user_profiles')
             .select('timezone')
             .eq('id', profile.user_id)
-            .single()
+            .maybeSingle()
           
           timezone = userProfile?.timezone || 'America/Los_Angeles'
         }

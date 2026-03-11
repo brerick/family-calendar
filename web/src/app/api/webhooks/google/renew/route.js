@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { google } from 'googleapis'
 
@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic'
 // Renew Google Calendar webhook watches that are expiring soon
 export async function POST() {
   try {
-    const supabase = await createClient()
+    // Use service client — called from sync/all internally with no user cookies.
+    const supabase = createServiceClient()
 
     // Find watches expiring in the next 24 hours
     const expirationThreshold = new Date(Date.now() + 24 * 60 * 60 * 1000)

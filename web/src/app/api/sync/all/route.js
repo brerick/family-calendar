@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 // Force Node.js runtime
@@ -7,17 +7,29 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request) {
   try {
-    const supabase = await createClient()
+    // Use service client — called from dashboard background trigger or internal fetches
+    // with no user auth cookies.
+    const supabase = createServiceClient()
+
+    const { searchParams } = new URL(request.url)
+    const staleMins = parseInt(searchParams.get('stale_mins') || '0', 10)
 
     // First, renew any expiring Google Calendar watches (don't wait for it)
     fetch(`${request.nextUrl.origin}/api/webhooks/google/renew`, { method: 'POST' })
       .catch(err => console.error('Watch renewal error:', err))
 
-    // Get all external calendars that need syncing (iCal and Google)
-    const { data: calendars, error } = await supabase
+    // Get external calendars that need syncing; optionally filter by staleness
+    let query = supabase
       .from('calendars')
-      .select('id, name, type, ics_url, refresh_token')
+      .select('id, name, type, ics_url, refresh_token, last_synced_at')
       .in('type', ['ical', 'google'])
+
+    if (staleMins > 0) {
+      const threshold = new Date(Date.now() - staleMins * 60 * 1000).toISOString()
+      query = query.or(`last_synced_at.is.null,last_synced_at.lt.${threshold}`)
+    }
+
+    const { data: calendars, error } = await query
 
     if (error) {
       console.error('Error fetching calendars:', error)
