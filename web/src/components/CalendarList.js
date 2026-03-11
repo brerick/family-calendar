@@ -34,8 +34,8 @@ export default function CalendarList({ calendars, compact = false }) {
     }
   }, [calendars])
 
-  const handleDelete = async (calendarId) => {
-    if (!confirm('Are you sure you want to delete this calendar? All events will be deleted.')) {
+  const handleDelete = async (calendarId, calendarName) => {
+    if (!confirm(`Delete "${calendarName}"? All events will be removed and this cannot be undone.`)) {
       return
     }
 
@@ -47,13 +47,19 @@ export default function CalendarList({ calendars, compact = false }) {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to delete calendar')
+        let msg = 'Failed to delete calendar'
+        try {
+          const body = await response.json()
+          if (body?.error) msg = body.error
+        } catch {}
+        throw new Error(msg)
       }
 
       router.refresh()
     } catch (error) {
       console.error('Error deleting calendar:', error)
-      alert('Failed to delete calendar')
+      alert(error.message || 'Failed to delete calendar')
+    } finally {
       setDeleting(null)
     }
   }
@@ -222,6 +228,17 @@ export default function CalendarList({ calendars, compact = false }) {
                 : <Eye className="h-3 w-3" />
               }
             </button>
+            <button
+              onClick={() => handleDelete(calendar.id, calendar.name)}
+              disabled={deleting === calendar.id}
+              className="flex-shrink-0 p-0.5 text-gray-400 hover:text-red-600 rounded transition-colors disabled:opacity-50"
+              title="Delete calendar"
+            >
+              {deleting === calendar.id
+                ? <RefreshCw className="h-3 w-3 animate-spin" />
+                : <Trash2 className="h-3 w-3" />
+              }
+            </button>
           </div>
         ))}
         
@@ -251,6 +268,17 @@ export default function CalendarList({ calendars, compact = false }) {
                     {toggling === calendar.id
                       ? <RefreshCw className="h-3 w-3 animate-spin" />
                       : <EyeOff className="h-3 w-3" />
+                    }
+                  </button>
+                  <button
+                    onClick={() => handleDelete(calendar.id, calendar.name)}
+                    disabled={deleting === calendar.id}
+                    className="flex-shrink-0 p-0.5 text-gray-400 hover:text-red-600 rounded transition-colors disabled:opacity-50"
+                    title="Delete calendar"
+                  >
+                    {deleting === calendar.id
+                      ? <RefreshCw className="h-3 w-3 animate-spin" />
+                      : <Trash2 className="h-3 w-3" />
                     }
                   </button>
                 </div>
@@ -346,7 +374,7 @@ export default function CalendarList({ calendars, compact = false }) {
                   </Link>
                 )}
                 <button
-                  onClick={() => handleDelete(calendar.id)}
+                  onClick={() => handleDelete(calendar.id, calendar.name)}
                   disabled={deleting === calendar.id}
                   className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50 ml-auto"
                   title="Delete calendar"
@@ -399,7 +427,7 @@ export default function CalendarList({ calendars, compact = false }) {
                       <span className="hidden sm:inline">Show</span>
                     </button>
                     <button
-                      onClick={() => handleDelete(calendar.id)}
+                      onClick={() => handleDelete(calendar.id, calendar.name)}
                       disabled={deleting === calendar.id}
                       className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
                       title="Delete calendar"

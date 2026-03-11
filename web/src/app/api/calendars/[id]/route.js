@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { google } from 'googleapis'
 
 // Helper function to normalize webcal:// URLs to https://
 function normalizeCalendarUrl(url) {
@@ -107,7 +109,7 @@ export async function DELETE(request, { params }) {
     // Check if calendar exists and belongs to household
     const { data: calendar } = await supabase
       .from('calendars')
-      .select('household_id')
+      .select('household_id, type, external_id, refresh_token')
       .eq('id', id)
       .single()
 
@@ -115,7 +117,37 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Calendar not found' }, { status: 404 })
     }
 
-    // Delete calendar (cascade will delete events)
+    // For Google calendars: stop the webhook watch channel so Google stops sending
+    // notifications for this calendar. Failures here are non-fatal.
+    if (calendar.type === 'google' && calendar.refresh_token) {
+      try {
+        const serviceSupabase = createServiceClient()
+        const { data: watch } = await serviceSupabase
+          .from('google_calendar_watches')
+          .select('channel_id, resource_id')
+          .eq('calendar_id', id)
+          .maybeSingle()
+
+        if (watch) {
+          const oauth2Client = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+            process.env.GOOGLE_REDIRECT_URI
+          )
+          oauth2Client.setCredentials({ refresh_token: calendar.refresh_token })
+          const calendarAPI = google.calendar({ version: 'v3', auth: oauth2Client })
+          await calendarAPI.channels.stop({
+            requestBody: { id: watch.channel_id, resourceId: watch.resource_id },
+          })
+          console.log('[Calendar Delete] Stopped webhook watch channel:', watch.channel_id)
+        }
+      } catch (watchErr) {
+        // Non-fatal: log and continue with deletion
+        console.warn('[Calendar Delete] Failed to stop watch (non-fatal):', watchErr.message)
+      }
+    }
+
+    // Delete calendar (cascade deletes events, sync_runs, google_calendar_watches)
     const { error } = await supabase
       .from('calendars')
       .delete()
