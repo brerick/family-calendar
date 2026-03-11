@@ -470,54 +470,61 @@ export default function CalendarView({ events, calendars }) {
       
       {/* View Mode Controls */}
       <div className="bg-white rounded-lg shadow p-3 mb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* View Toggle */}
-        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('calendar')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              viewMode === 'calendar'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <CalendarIconView className="h-4 w-4" />
-            <span>Calendar</span>
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              viewMode === 'list'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <List className="h-4 w-4" />
-            <span>Events</span>
-          </button>
-        </div>
+        {/* Left: view toggle + meal/chore overlays */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'calendar'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <CalendarIconView className="h-4 w-4" />
+              <span>Calendar</span>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <List className="h-4 w-4" />
+              <span>Events</span>
+            </button>
+          </div>
 
-        {/* Meal & Chore Overlay Toggles */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowMeals(v => !v)}
-            className={`flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              showMeals ? 'bg-orange-100 text-orange-700' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-            }`}
-            title="Show meals on calendar"
-          >
-            <Utensils className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Meals</span>
-          </button>
-          <button
-            onClick={() => setShowChores(v => !v)}
-            className={`flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              showChores ? 'bg-purple-100 text-purple-700' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-            }`}
-            title="Show chores on calendar"
-          >
-            <ClipboardList className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Chores</span>
-          </button>
+          {/* Meal & Chore Overlay Toggles */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowMeals(v => !v)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                showMeals
+                  ? 'bg-orange-100 text-orange-700 border-orange-200'
+                  : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-700'
+              }`}
+              title="Show meals on calendar"
+            >
+              <Utensils className="h-3.5 w-3.5" />
+              <span>Meals</span>
+            </button>
+            <button
+              onClick={() => setShowChores(v => !v)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                showChores
+                  ? 'bg-purple-100 text-purple-700 border-purple-200'
+                  : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-gray-700'
+              }`}
+              title="Show chores on calendar"
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              <span>Chores</span>
+            </button>
+          </div>
         </div>
 
         {/* List View Time Range Selector */}
