@@ -123,11 +123,20 @@ export async function POST(request, { params }) {
           console.log(`[Google Sync] Incremental sync fetched ${events.length} changed events`)
         } catch (syncTokenError) {
           const status = syncTokenError?.response?.status || syncTokenError?.code
-          if (status === 410 || status === 401) {
-            // 410 = sync token expired, 401 = revoked — clear and do a full sync
-            console.warn('[Google Sync] syncToken invalid (status', status, '), falling back to full sync')
+          const googleError = syncTokenError?.response?.data?.error
+          if (status === 410) {
+            // 410 = sync token expired — clear and do a full sync
+            console.warn('[Google Sync] syncToken expired (410), falling back to full sync')
             await supabase.from('calendars').update({ sync_cursor: null }).eq('id', calendarId)
             isFullSync = true
+          } else if (status === 401 || googleError === 'invalid_grant') {
+            // Refresh token revoked or expired — tell the user to reconnect
+            console.error('[Google Sync] Google auth invalid (status', status, googleError, '), need reconnect')
+            await supabase.from('calendars').update({ sync_cursor: null }).eq('id', calendarId)
+            return NextResponse.json(
+              { error: 'Google authorization expired. Please reconnect your Google Calendar.', details: syncTokenError.message },
+              { status: 401 }
+            )
           } else {
             throw syncTokenError
           }
@@ -139,16 +148,31 @@ export async function POST(request, { params }) {
       if (isFullSync) {
         const { start, end } = getTimeWindow()
         console.log('[Google Sync] Performing full sync')
-        const result = await fetchAllGoogleEvents(calendarAPI, calendar.external_id, {
-          timeMin: start.toISOString(),
-          timeMax: end.toISOString(),
-          singleEvents: true,
-          orderBy: 'startTime',
-          maxResults: 2500,
-        })
-        events = result.items
-        nextSyncToken = result.nextSyncToken
-        console.log(`[Google Sync] Full sync fetched ${events.length} events`)
+        try {
+          const result = await fetchAllGoogleEvents(calendarAPI, calendar.external_id, {
+            timeMin: start.toISOString(),
+            timeMax: end.toISOString(),
+            singleEvents: true,
+            orderBy: 'startTime',
+            maxResults: 2500,
+          })
+          events = result.items
+          nextSyncToken = result.nextSyncToken
+          console.log(`[Google Sync] Full sync fetched ${events.length} events`)
+        } catch (fullSyncError) {
+          const status = fullSyncError?.response?.status || fullSyncError?.code
+          const googleError = fullSyncError?.response?.data?.error
+          console.error('[Google Sync] Full sync error:', status, googleError, fullSyncError.message)
+          if (status === 401 || googleError === 'invalid_grant') {
+            // Refresh token revoked or expired — clear cursor, tell the user to reconnect
+            await supabase.from('calendars').update({ sync_cursor: null }).eq('id', calendarId)
+            return NextResponse.json(
+              { error: 'Google authorization expired. Please reconnect your Google Calendar.', details: fullSyncError.message },
+              { status: 401 }
+            )
+          }
+          throw fullSyncError
+        }
       }
 
       // Process events

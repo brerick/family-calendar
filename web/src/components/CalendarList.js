@@ -71,13 +71,19 @@ export default function CalendarList({ calendars, compact = false }) {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to sync calendar')
+        let msg = 'Failed to sync calendar'
+        try {
+          const body = await response.json()
+          if (body?.error) msg = body.error
+          if (body?.details) msg += `\n\nDetails: ${body.details}`
+        } catch {}
+        throw new Error(msg)
       }
 
       router.refresh()
     } catch (error) {
       console.error('Error syncing calendar:', error)
-      alert('Failed to sync calendar')
+      alert(error.message || 'Failed to sync calendar')
     } finally {
       setSyncing(null)
     }
