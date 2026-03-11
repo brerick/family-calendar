@@ -5,11 +5,32 @@ import { google } from 'googleapis'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Time window: 6 months ago to 18 months ahead
-const TIME_WINDOW_START = new Date()
-TIME_WINDOW_START.setMonth(TIME_WINDOW_START.getMonth() - 6)
-const TIME_WINDOW_END = new Date()
-TIME_WINDOW_END.setMonth(TIME_WINDOW_END.getMonth() + 18)
+function getTimeWindow() {
+  const start = new Date()
+  start.setMonth(start.getMonth() - 6)
+  const end = new Date()
+  end.setMonth(end.getMonth() + 18)
+  return { start, end }
+}
+
+async function fetchAllGoogleEvents(calendarAPI, externalCalendarId, params) {
+  const items = []
+  let pageToken = undefined
+  let nextSyncToken = undefined
+
+  do {
+    const response = await calendarAPI.events.list({
+      calendarId: externalCalendarId,
+      ...params,
+      ...(pageToken ? { pageToken } : {}),
+    })
+    items.push(...(response.data.items || []))
+    pageToken = response.data.nextPageToken
+    nextSyncToken = response.data.nextSyncToken
+  } while (pageToken)
+
+  return { items, nextSyncToken }
+}
 
 export async function POST(request, { params }) {
   try {
@@ -83,29 +104,77 @@ export async function POST(request, { params }) {
 
       const calendarAPI = google.calendar({ version: 'v3', auth: oauth2Client })
 
-      // Fetch events
-      const response = await calendarAPI.events.list({
-        calendarId: calendar.external_id,
-        timeMin: TIME_WINDOW_START.toISOString(),
-        timeMax: TIME_WINDOW_END.toISOString(),
-        singleEvents: true, // Expand recurring events
-        orderBy: 'startTime',
-        maxResults: 2500,
-        syncToken: calendar.sync_cursor || undefined,
-      })
+      let events = []
+      let nextSyncToken = null
+      let isFullSync = false
 
-      const events = response.data.items || []
-      console.log(`[Google Sync] Fetched ${events.length} events from Google Calendar`)
+      if (calendar.sync_cursor) {
+        // Incremental sync: syncToken CANNOT be combined with timeMin/timeMax/orderBy.
+        // Google will return only events changed since the last sync.
+        // If the token is expired/invalid (410 Gone), fall back to a full sync.
+        try {
+          console.log('[Google Sync] Attempting incremental sync with syncToken')
+          const result = await fetchAllGoogleEvents(calendarAPI, calendar.external_id, {
+            syncToken: calendar.sync_cursor,
+            maxResults: 2500,
+          })
+          events = result.items
+          nextSyncToken = result.nextSyncToken
+          console.log(`[Google Sync] Incremental sync fetched ${events.length} changed events`)
+        } catch (syncTokenError) {
+          const status = syncTokenError?.response?.status || syncTokenError?.code
+          if (status === 410 || status === 401) {
+            // 410 = sync token expired, 401 = revoked — clear and do a full sync
+            console.warn('[Google Sync] syncToken invalid (status', status, '), falling back to full sync')
+            await supabase.from('calendars').update({ sync_cursor: null }).eq('id', calendarId)
+            isFullSync = true
+          } else {
+            throw syncTokenError
+          }
+        }
+      } else {
+        isFullSync = true
+      }
 
-      const parsedEvents = []
-      const eventIds = new Set()
+      if (isFullSync) {
+        const { start, end } = getTimeWindow()
+        console.log('[Google Sync] Performing full sync')
+        const result = await fetchAllGoogleEvents(calendarAPI, calendar.external_id, {
+          timeMin: start.toISOString(),
+          timeMax: end.toISOString(),
+          singleEvents: true,
+          orderBy: 'startTime',
+          maxResults: 2500,
+        })
+        events = result.items
+        nextSyncToken = result.nextSyncToken
+        console.log(`[Google Sync] Full sync fetched ${events.length} events`)
+      }
 
       // Process events
+      let eventsUpserted = 0
+      let upsertErrors = 0
+      const seenEventIds = new Set()
+
       for (const event of events) {
         const startDate = event.start?.dateTime || event.start?.date
         const endDate = event.end?.dateTime || event.end?.date
 
+        // For incremental sync, cancelled events arrive with status='cancelled' but
+        // may lack start/end — handle them explicitly.
+        if (event.status === 'cancelled') {
+          await supabase
+            .from('events')
+            .update({ status: 'cancelled', raw_payload: event })
+            .eq('calendar_id', calendarId)
+            .eq('external_event_id', event.id)
+          eventsUpserted++
+          continue
+        }
+
         if (!startDate) continue
+
+        seenEventIds.add(event.id)
 
         const normalizedEvent = {
           calendar_id: calendarId,
@@ -117,48 +186,30 @@ export async function POST(request, { params }) {
           start_time: event.start.dateTime ? new Date(event.start.dateTime).toISOString() : new Date(event.start.date).toISOString(),
           end_time: event.end?.dateTime ? new Date(event.end.dateTime).toISOString() : (event.end?.date ? new Date(event.end.date).toISOString() : null),
           all_day: !event.start.dateTime,
-          status: event.status === 'cancelled' ? 'cancelled' : 'confirmed',
+          status: 'confirmed',
           recurrence_rule: event.recurrence ? event.recurrence.join(';') : null,
           raw_payload: event,
         }
 
-        parsedEvents.push(normalizedEvent)
-        eventIds.add(normalizedEvent.external_event_id)
-      }
-
-      console.log(`[Google Sync] Parsed ${parsedEvents.length} events within time window`)
-
-      // Upsert events
-      let eventsUpserted = 0
-      let upsertErrors = 0
-      for (const event of parsedEvents) {
-        // Check if event exists
         const { data: existing } = await supabase
           .from('events')
           .select('id')
-          .eq('calendar_id', event.calendar_id)
-          .eq('external_event_id', event.external_event_id)
-          .eq('instance_id', event.instance_id)
+          .eq('calendar_id', calendarId)
+          .eq('external_event_id', event.id)
+          .eq('instance_id', normalizedEvent.instance_id)
           .maybeSingle()
 
         let error
         if (existing) {
-          // Update existing event
-          const result = await supabase
-            .from('events')
-            .update(event)
-            .eq('id', existing.id)
+          const result = await supabase.from('events').update(normalizedEvent).eq('id', existing.id)
           error = result.error
         } else {
-          // Insert new event
-          const result = await supabase
-            .from('events')
-            .insert(event)
+          const result = await supabase.from('events').insert(normalizedEvent)
           error = result.error
         }
 
         if (error) {
-          console.error('[Google Sync] Error upserting event:', error.message, 'Event:', event.title)
+          console.error('[Google Sync] Error upserting event:', error.message, 'Event:', normalizedEvent.title)
           upsertErrors++
         } else {
           eventsUpserted++
@@ -167,62 +218,59 @@ export async function POST(request, { params }) {
 
       console.log(`[Google Sync] Upserted ${eventsUpserted} events, ${upsertErrors} errors`)
 
-      // Mark removed events as cancelled
-      const { data: existingEvents } = await supabase
-        .from('events')
-        .select('id, external_event_id')
-        .eq('calendar_id', calendarId)
-        .neq('status', 'cancelled')
+      // For full syncs only: mark events no longer in Google as cancelled.
+      // Skipped for incremental sync — Google already sends cancelled status for removed events.
+      if (isFullSync && seenEventIds.size > 0) {
+        const { data: existingEvents } = await supabase
+          .from('events')
+          .select('id, external_event_id')
+          .eq('calendar_id', calendarId)
+          .neq('status', 'cancelled')
 
-      if (existingEvents) {
-        const removedEvents = existingEvents.filter(
-          (e) => !eventIds.has(e.external_event_id)
-        )
-
-        if (removedEvents.length > 0) {
-          for (const removedEvent of removedEvents) {
-            await supabase
-              .from('events')
-              .update({ status: 'cancelled' })
-              .eq('id', removedEvent.id)
+        if (existingEvents) {
+          const removedEvents = existingEvents.filter((e) => !seenEventIds.has(e.external_event_id))
+          if (removedEvents.length > 0) {
+            for (const removedEvent of removedEvents) {
+              await supabase.from('events').update({ status: 'cancelled' }).eq('id', removedEvent.id)
+            }
+            console.log(`[Google Sync] Marked ${removedEvents.length} removed events as cancelled`)
           }
-          console.log(`[Google Sync] Marked ${removedEvents.length} removed events as cancelled`)
         }
       }
 
-      // Store syncToken for incremental sync next time
-      if (response.data.nextSyncToken) {
+      // Persist the new syncToken for the next incremental sync
+      if (nextSyncToken) {
         await supabase
           .from('calendars')
-          .update({ sync_cursor: response.data.nextSyncToken })
+          .update({ sync_cursor: nextSyncToken, last_synced_at: new Date().toISOString() })
+          .eq('id', calendarId)
+      } else {
+        await supabase
+          .from('calendars')
+          .update({ last_synced_at: new Date().toISOString() })
           .eq('id', calendarId)
       }
 
-      // Update sync run as completed
-      await supabase
-        .from('sync_runs')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          events_synced: eventsUpserted,
-        })
-        .eq('id', syncRun.id)
-
-      // Update calendar last_synced_at
-      await supabase
-        .from('calendars')
-        .update({ last_synced_at: new Date().toISOString() })
-        .eq('id', calendarId)
+      if (syncRun) {
+        await supabase
+          .from('sync_runs')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            events_synced: eventsUpserted,
+          })
+          .eq('id', syncRun.id)
+      }
 
       return NextResponse.json({
         success: true,
         events_synced: eventsUpserted,
-        sync_run_id: syncRun.id,
+        sync_type: isFullSync ? 'full' : 'incremental',
+        sync_run_id: syncRun?.id,
       })
     } catch (syncError) {
       console.error('[Google Sync] Sync error:', syncError)
 
-      // Update sync run as failed
       if (syncRun) {
         await supabase
           .from('sync_runs')
