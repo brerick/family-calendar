@@ -186,22 +186,37 @@ export default function CalendarList({ calendars, compact = false }) {
     return (
       <div className="space-y-1">
         {visibleCalendars.map((calendar) => (
-          <button
+          <div
             key={calendar.id}
-            onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
-            disabled={toggling === calendar.id}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors text-left"
-            title={`Toggle ${calendar.name}`}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
           >
             <div
               className="w-3 h-3 rounded flex-shrink-0"
               style={{ backgroundColor: calendar.color }}
             />
             <span className="truncate flex-1">{calendar.name}</span>
-            {toggling === calendar.id ? (
-              <RefreshCw className="h-3 w-3 animate-spin text-gray-400 flex-shrink-0" />
-            ) : null}
-          </button>
+            {(calendar.type === 'ical' || calendar.type === 'google') && (
+              <button
+                onClick={() => handleSync(calendar.id, calendar.type)}
+                disabled={syncing === calendar.id}
+                className="flex-shrink-0 p-0.5 text-gray-400 hover:text-blue-600 rounded transition-colors disabled:opacity-50"
+                title={`Sync now • ${formatLastSync(calendar.last_synced_at)}`}
+              >
+                <RefreshCw className={`h-3 w-3 ${syncing === calendar.id ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+            <button
+              onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
+              disabled={toggling === calendar.id}
+              className="flex-shrink-0 p-0.5 text-gray-400 hover:text-gray-600 rounded transition-colors disabled:opacity-50"
+              title="Hide calendar"
+            >
+              {toggling === calendar.id
+                ? <RefreshCw className="h-3 w-3 animate-spin" />
+                : <Eye className="h-3 w-3" />
+              }
+            </button>
+          </div>
         ))}
         
         {hiddenCalendars.length > 0 && (
@@ -212,16 +227,27 @@ export default function CalendarList({ calendars, compact = false }) {
             </summary>
             <div className="space-y-1 mt-1">
               {hiddenCalendars.map((calendar) => (
-                <button
+                <div
                   key={calendar.id}
-                  onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
-                  disabled={toggling === calendar.id}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 rounded-lg transition-colors text-left opacity-60"
-                  title={`Show ${calendar.name}`}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 rounded-lg opacity-60 hover:opacity-100 transition-opacity"
                 >
-                  <EyeOff className="h-3 w-3 flex-shrink-0" style={{ color: calendar.color }} />
+                  <div
+                    className="w-3 h-3 rounded flex-shrink-0"
+                    style={{ backgroundColor: calendar.color }}
+                  />
                   <span className="truncate flex-1">{calendar.name}</span>
-                </button>
+                  <button
+                    onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
+                    disabled={toggling === calendar.id}
+                    className="flex-shrink-0 p-0.5 text-gray-400 hover:text-gray-600 rounded transition-colors disabled:opacity-50"
+                    title="Show calendar"
+                  >
+                    {toggling === calendar.id
+                      ? <RefreshCw className="h-3 w-3 animate-spin" />
+                      : <EyeOff className="h-3 w-3" />
+                    }
+                  </button>
+                </div>
               ))}
             </div>
           </details>
@@ -237,33 +263,17 @@ export default function CalendarList({ calendars, compact = false }) {
       {visibleCalendars.map((calendar) => (
         <div
           key={calendar.id}
-          className="group border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm transition-all bg-white"
+          className="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm transition-all bg-white"
         >
           <div className="flex items-start gap-3">
-            {/* Color indicator with visibility toggle */}
-            <button
-              onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
-              disabled={toggling === calendar.id}
-              className="flex-shrink-0 mt-0.5 transition-all disabled:opacity-50 hover:scale-110"
-              title={calendar.visible ?? true ? 'Hide calendar' : 'Show calendar'}
-            >
-              <div
-                className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
-                style={{ 
-                  borderColor: calendar.color,
-                  backgroundColor: calendar.color + '20'
-                }}
-              >
-                {toggling === calendar.id ? (
-                  <RefreshCw className="h-3 w-3 animate-spin" style={{ color: calendar.color }} />
-                ) : (
-                  <Eye className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: calendar.color }} />
-                )}
-              </div>
-            </button>
-            
+            {/* Color indicator */}
+            <div
+              className="flex-shrink-0 mt-1 w-4 h-4 rounded-md"
+              style={{ backgroundColor: calendar.color }}
+            />
+
             <div className="flex-1 min-w-0">
-              {/* Calendar name and type */}
+              {/* Calendar name row with always-visible sync button */}
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="text-sm font-semibold text-gray-900 truncate">
                   {calendar.name}
@@ -273,8 +283,18 @@ export default function CalendarList({ calendars, compact = false }) {
                     {eventCounts[calendar.id]}
                   </span>
                 )}
+                {(calendar.type === 'ical' || calendar.type === 'google') && (
+                  <button
+                    onClick={() => handleSync(calendar.id, calendar.type)}
+                    disabled={syncing === calendar.id}
+                    className="ml-auto flex-shrink-0 p-1 text-gray-400 hover:text-blue-600 rounded transition-colors disabled:opacity-50"
+                    title={`Sync now • Last synced: ${formatLastSync(calendar.last_synced_at)}`}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${syncing === calendar.id ? 'animate-spin' : ''}`} />
+                  </button>
+                )}
               </div>
-              
+
               <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
                 <span className="capitalize px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 font-medium">
                   {calendar.type}
@@ -282,27 +302,25 @@ export default function CalendarList({ calendars, compact = false }) {
                 {(calendar.type === 'ical' || calendar.type === 'google') && (
                   <>
                     <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <RefreshCw className="h-3 w-3" />
-                      {formatLastSync(calendar.last_synced_at)}
-                    </span>
+                    <span>{formatLastSync(calendar.last_synced_at)}</span>
                   </>
                 )}
               </div>
 
               {/* Actions */}
               <div className="flex items-center gap-1">
-                {(calendar.type === 'ical' || calendar.type === 'google') && (
-                  <button
-                    onClick={() => handleSync(calendar.id, calendar.type)}
-                    disabled={syncing === calendar.id}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
-                    title="Sync now"
-                  >
-                    <RefreshCw className={`h-3 w-3 ${syncing === calendar.id ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">Sync</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
+                  disabled={toggling === calendar.id}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                  title="Hide calendar"
+                >
+                  {toggling === calendar.id
+                    ? <RefreshCw className="h-3 w-3 animate-spin" />
+                    : <Eye className="h-3 w-3" />
+                  }
+                  <span className="hidden sm:inline">Hide</span>
+                </button>
                 <button
                   onClick={() => handleEdit(calendar)}
                   className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded transition-colors"
@@ -351,48 +369,41 @@ export default function CalendarList({ calendars, compact = false }) {
             {hiddenCalendars.map((calendar) => (
               <div
                 key={calendar.id}
-                className="group border border-gray-200 rounded-lg p-3 bg-gray-50 opacity-60 hover:opacity-100 transition-all"
+                className="border border-gray-200 rounded-lg p-3 bg-gray-50 opacity-70 hover:opacity-100 transition-all"
               >
-                <div className="flex items-start gap-3">
-                  <button
-                    onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
-                    disabled={toggling === calendar.id}
-                    className="flex-shrink-0 mt-0.5 transition-all disabled:opacity-50 hover:scale-110"
-                    title="Show calendar"
-                  >
-                    <div
-                      className="w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all"
-                      style={{ 
-                        borderColor: calendar.color,
-                        backgroundColor: calendar.color + '10'
-                      }}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex-shrink-0 w-4 h-4 rounded-md opacity-50"
+                    style={{ backgroundColor: calendar.color }}
+                  />
+                  <h3 className="text-sm font-medium text-gray-600 truncate flex-1">
+                    {calendar.name}
+                  </h3>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => handleToggleVisibility(calendar.id, calendar.visible ?? true)}
+                      disabled={toggling === calendar.id}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200 rounded transition-colors disabled:opacity-50"
+                      title="Show calendar"
                     >
-                      {toggling === calendar.id ? (
-                        <RefreshCw className="h-3 w-3 animate-spin" style={{ color: calendar.color }} />
+                      {toggling === calendar.id
+                        ? <RefreshCw className="h-3 w-3 animate-spin" />
+                        : <EyeOff className="h-3 w-3" />
+                      }
+                      <span className="hidden sm:inline">Show</span>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(calendar.id)}
+                      disabled={deleting === calendar.id}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                      title="Delete calendar"
+                    >
+                      {deleting === calendar.id ? (
+                        <RefreshCw className="h-3 w-3 animate-spin" />
                       ) : (
-                        <EyeOff className="h-3 w-3" style={{ color: calendar.color }} />
+                        <Trash2 className="h-3 w-3" />
                       )}
-                    </div>
-                  </button>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-gray-600 truncate">
-                        {calendar.name}
-                      </h3>
-                      <button
-                        onClick={() => handleDelete(calendar.id)}
-                        disabled={deleting === calendar.id}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-                        title="Delete calendar"
-                      >
-                        {deleting === calendar.id ? (
-                          <RefreshCw className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
-                        )}
-                      </button>
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
