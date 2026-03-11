@@ -95,13 +95,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Title and assigned person are required' }, { status: 400 })
     }
 
+    // If only a profile is provided (no direct user UUID), fall back to the creator's user id
+    // to satisfy the NOT NULL constraint on assigned_to
+    const resolvedAssignedTo = assigned_to || user.id
+
     const { data: chore, error } = await supabase
       .from('chores')
       .insert({
         household_id: membership.household_id,
         title,
         description,
-        assigned_to: assigned_to || null,
+        assigned_to: resolvedAssignedTo,
         assigned_to_profile_id: assigned_to_profile_id || null,
         due_date,
         recurrence_rule,
