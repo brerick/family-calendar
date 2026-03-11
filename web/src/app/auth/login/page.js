@@ -16,11 +16,12 @@ function LoginForm() {
   const router = useRouter()
   const supabase = createClient()
 
-  // Check if already logged in
+  // Check if already logged in - use getUser() to validate against the server,
+  // not getSession() which only reads local cookies and can't detect invalidated sessions
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
         // Already logged in, redirect
         if (inviteToken) {
           window.location.href = `/household/setup?invite=${inviteToken}`
@@ -28,6 +29,8 @@ function LoginForm() {
           window.location.href = '/dashboard'
         }
       }
+      // If getUser() fails (e.g. session_not_found), auth-js clears the local
+      // session cookies automatically, so the user stays on the login form
     }
     checkSession()
   }, [inviteToken])

@@ -49,12 +49,14 @@ export default async function Home() {
                       Setup Household
                     </Link>
                   )}
-                  <Link
-                    href="/auth/signout"
-                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-                  >
-                    Sign Out
-                  </Link>
+                  <form action="/auth/signout" method="POST" style={{ display: 'inline' }}>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+                    >
+                      Sign Out
+                    </button>
+                  </form>
                 </>
               ) : (
                 <>

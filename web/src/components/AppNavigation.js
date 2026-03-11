@@ -187,13 +187,15 @@ export default function AppNavigation({ userName, calendars = [], onCalendarUpda
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200">
-        <Link
-          href="/auth/signout"
-          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign Out
-        </Link>
+        <form action="/auth/signout" method="POST">
+          <button
+            type="submit"
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg w-full"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
+        </form>
       </div>
     </div>
   )

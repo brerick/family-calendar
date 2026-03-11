@@ -154,12 +154,14 @@ function HouseholdSetupForm() {
               <Home className="h-5 w-5 text-blue-600" />
               <span>HomeOrbit</span>
             </a>
-            <a
-              href="/auth/signout"
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
-              Sign Out
-            </a>
+            <form action="/auth/signout" method="POST" style={{ display: 'inline' }}>
+              <button
+                type="submit"
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                Sign Out
+              </button>
+            </form>
           </div>
         </div>
       </div>
