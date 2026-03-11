@@ -53,7 +53,6 @@ export default function NewCalendarPage() {
       }
 
       router.push('/dashboard')
-      router.refresh()
     } catch (err) {
       setError(err.message)
       setLoading(false)

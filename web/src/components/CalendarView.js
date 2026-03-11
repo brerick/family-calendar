@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label"
 import { DateTimePicker, DatePicker } from "@/components/ui/date-time-picker"
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 import RecurrenceSelector from "@/components/ui/recurrence-selector"
-import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, RepeatIcon } from 'lucide-react';
+import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, RepeatIcon, Utensils, ClipboardList } from 'lucide-react';
 import { Calendar as CalendarIconView, List, Clock, Settings as SettingsIcon } from 'lucide-react';
 import SearchBar from '@/components/SearchBar';
 
@@ -48,7 +48,33 @@ export default function CalendarView({ events, calendars }) {
   
   // Search filter state
   const [filters, setFilters] = useState({ searchQuery: '' });
-  
+
+  // Meal & chore overlay
+  const [showMeals, setShowMeals] = useState(false)
+  const [showChores, setShowChores] = useState(false)
+  const [meals, setMeals] = useState([])
+  const [chores, setChores] = useState([])
+  const [calDateRange, setCalDateRange] = useState(null)
+
+  useEffect(() => {
+    if (!showMeals) { setMeals([]); return }
+    if (!calDateRange) return
+    const start = calDateRange.start.toISOString().split('T')[0]
+    const end = calDateRange.end.toISOString().split('T')[0]
+    fetch(`/api/meals?start=${start}&end=${end}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.meals) setMeals(data.meals) })
+      .catch(console.error)
+  }, [showMeals, calDateRange])
+
+  useEffect(() => {
+    if (!showChores) { setChores([]); return }
+    fetch('/api/chores?completed=false')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.chores) setChores(data.chores) })
+      .catch(console.error)
+  }, [showChores])
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -204,12 +230,46 @@ export default function CalendarView({ events, calendars }) {
       calendarId: event.calendar_id,
       recurrenceRule: event.recurrence_rule,
     }
-  }));
+  }))
+
+  const MEAL_COLORS = { breakfast: '#f59e0b', lunch: '#10b981', dinner: '#f97316', snack: '#ec4899' }
+  const mealEvents = meals.map(meal => ({
+    id: `meal-${meal.id}`,
+    title: `🍽 ${meal.title}`,
+    start: meal.date,
+    allDay: true,
+    backgroundColor: MEAL_COLORS[meal.meal_type] || '#f97316',
+    borderColor: MEAL_COLORS[meal.meal_type] || '#f97316',
+    textColor: '#fff',
+    extendedProps: { type: 'meal', tab: 'meals' },
+    editable: false,
+  }))
+
+  const choreEvents = chores
+    .filter(c => c.due_date)
+    .map(chore => ({
+      id: `chore-${chore.id}`,
+      title: `☑ ${chore.title}`,
+      start: chore.due_date,
+      allDay: true,
+      backgroundColor: '#8b5cf6',
+      borderColor: '#8b5cf6',
+      textColor: '#fff',
+      extendedProps: { type: 'chore', tab: 'chores' },
+      editable: false,
+    }))
+
+  const allCalendarEvents = [...calendarEvents, ...mealEvents, ...choreEvents]
 
   const handleEventClick = (info) => {
+    // Meals and chores navigate to family planner
+    if (info.event.extendedProps.type === 'meal' || info.event.extendedProps.type === 'chore') {
+      router.push(`/family-planner?tab=${info.event.extendedProps.tab}`)
+      return
+    }
     const event = info.event;
     const props = event.extendedProps;
-    
+
     // Set selected event and open modal
     const eventData = {
       id: event.id,
@@ -433,6 +493,30 @@ export default function CalendarView({ events, calendars }) {
           >
             <List className="h-4 w-4" />
             <span>Events</span>
+          </button>
+        </div>
+
+        {/* Meal & Chore Overlay Toggles */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowMeals(v => !v)}
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              showMeals ? 'bg-orange-100 text-orange-700' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+            }`}
+            title="Show meals on calendar"
+          >
+            <Utensils className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Meals</span>
+          </button>
+          <button
+            onClick={() => setShowChores(v => !v)}
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              showChores ? 'bg-purple-100 text-purple-700' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+            }`}
+            title="Show chores on calendar"
+          >
+            <ClipboardList className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Chores</span>
           </button>
         </div>
 
@@ -766,15 +850,15 @@ export default function CalendarView({ events, calendars }) {
               titleFormat: { year: 'numeric', month: 'short', day: 'numeric' }
             }
           }}
-          events={calendarEvents}
+          events={allCalendarEvents}
           eventClick={handleEventClick}
           dateClick={handleDateClick}
           eventDrop={handleEventDrop}
           datesSet={(dateInfo) => {
-            // Track view changes from FullCalendar
             if (dateInfo.view.type !== view) {
               setView(dateInfo.view.type);
             }
+            setCalDateRange({ start: dateInfo.start, end: dateInfo.end });
           }}
           editable={true}
           selectable={true}

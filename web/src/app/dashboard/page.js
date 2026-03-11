@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import DashboardLayout from '@/components/DashboardLayout'
 
+export const dynamic = 'force-dynamic'
+
 const SYNC_STALE_MINS = 60 // Re-sync external calendars at most once per hour
 
 export default async function DashboardPage() {

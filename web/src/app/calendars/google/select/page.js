@@ -84,7 +84,6 @@ function GoogleCalendarSelectForm() {
         throw new Error(data.error || 'Failed to save calendars')
       }
 
-      // Redirect to dashboard
       router.push('/dashboard?success=google_calendars_connected')
     } catch (err) {
       setError(err.message)
