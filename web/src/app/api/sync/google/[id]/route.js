@@ -179,6 +179,8 @@ export async function POST(request, { params }) {
       let eventsUpserted = 0
       let upsertErrors = 0
       const seenEventIds = new Set()
+      // Cache master event recurrence rules to avoid repeated API calls
+      const masterRecurrenceCache = new Map()
 
       for (const event of events) {
         const startDate = event.start?.dateTime || event.start?.date
@@ -200,9 +202,27 @@ export async function POST(request, { params }) {
 
         seenEventIds.add(event.id)
 
+        // For recurring instances, fetch the master event once to get the RRULE
+        let recurrenceRule = event.recurrence ? event.recurrence.join(';') : null
+        if (event.recurringEventId && !recurrenceRule) {
+          if (!masterRecurrenceCache.has(event.recurringEventId)) {
+            try {
+              const master = await calendarAPI.events.get({
+                calendarId: calendar.external_id,
+                eventId: event.recurringEventId,
+              })
+              masterRecurrenceCache.set(event.recurringEventId, master.data.recurrence ? master.data.recurrence.join(';') : null)
+            } catch {
+              masterRecurrenceCache.set(event.recurringEventId, null)
+            }
+          }
+          recurrenceRule = masterRecurrenceCache.get(event.recurringEventId) || null
+        }
+
         const normalizedEvent = {
           calendar_id: calendarId,
           external_event_id: event.id,
+          recurring_event_id: event.recurringEventId || null,
           instance_id: event.recurringEventId ? `${event.recurringEventId}_${startDate}` : '',
           title: event.summary || 'Untitled Event',
           description: event.description || null,
@@ -211,7 +231,7 @@ export async function POST(request, { params }) {
           end_time: event.end?.dateTime ? new Date(event.end.dateTime).toISOString() : (event.end?.date ? new Date(event.end.date).toISOString() : null),
           all_day: !event.start.dateTime,
           status: 'confirmed',
-          recurrence_rule: event.recurrence ? event.recurrence.join(';') : null,
+          recurrence_rule: recurrenceRule,
           raw_payload: event,
         }
 

@@ -64,7 +64,6 @@ export default async function DashboardPage() {
     .eq('household_id', membership.household_id)
     .order('name')
 
-  // Fetch events only from visible calendars, including attendees
   const { data: events } = await supabase
     .from('events')
     .select(`

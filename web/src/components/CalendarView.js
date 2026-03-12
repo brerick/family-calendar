@@ -236,6 +236,7 @@ export default function CalendarView({ events, calendars, householdProfiles = []
       calendarId: event.calendar_id,
       recurrenceRule: event.recurrence_rule,
       attendees: event.attendees || [],
+      recurringEventId: event.recurring_event_id || null,
     }
   }))
 
