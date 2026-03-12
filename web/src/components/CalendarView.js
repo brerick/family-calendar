@@ -50,15 +50,20 @@ export default function CalendarView({ events, calendars }) {
   const [filters, setFilters] = useState({ searchQuery: '' });
 
   // Meal & chore overlay
-  const [showMeals, setShowMeals] = useState(false)
-  const [showChores, setShowChores] = useState(false)
+  const [showMeals, setShowMeals] = useState(true)
+  const [showChores, setShowChores] = useState(true)
   const [meals, setMeals] = useState([])
   const [chores, setChores] = useState([])
-  const [calDateRange, setCalDateRange] = useState(null)
+  // Seed with the current month range so the meals fetch doesn't wait on FullCalendar's datesSet
+  const [calDateRange, setCalDateRange] = useState(() => {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0)
+    return { start, end }
+  })
 
   useEffect(() => {
     if (!showMeals) { setMeals([]); return }
-    if (!calDateRange) return
     const start = calDateRange.start.toISOString().split('T')[0]
     const end = calDateRange.end.toISOString().split('T')[0]
     fetch(`/api/meals?start=${start}&end=${end}`)
