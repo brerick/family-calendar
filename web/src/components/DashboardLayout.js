@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import CalendarView from '@/components/CalendarView';
 
-export default function DashboardLayout({ household, user, calendars, events, membershipRole }) {
+export default function DashboardLayout({ household, user, calendars, events, membershipRole, householdProfiles = [] }) {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <div className="flex-1 p-4 sm:p-6 overflow-hidden">
         <div className="h-full bg-white rounded-lg shadow">
           {calendars && calendars.length > 0 ? (
             <div className="h-full p-3 sm:p-6 overflow-auto">
-              <CalendarView events={events || []} calendars={calendars} />
+              <CalendarView events={events || []} calendars={calendars} householdProfiles={householdProfiles} />
             </div>
           ) : (
             <div className="flex items-center justify-center h-full">

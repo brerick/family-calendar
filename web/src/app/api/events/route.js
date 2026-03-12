@@ -51,7 +51,7 @@ export async function POST(request) {
   }
 
   const body = await request.json();
-  const { calendar_id, title, description, start_time, end_time, all_day, location } = body;
+  const { calendar_id, title, description, start_time, end_time, all_day, location, attendee_profile_ids } = body;
 
   // Validate required fields
   if (!calendar_id || !title || !start_time) {
@@ -76,6 +76,25 @@ export async function POST(request) {
   if (error) {
     console.error('Error creating event:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Save attendees if provided
+  if (attendee_profile_ids?.length > 0) {
+    const { data: profiles } = await supabase
+      .from('household_profiles')
+      .select('id, user_id')
+      .in('id', attendee_profile_ids)
+
+    if (profiles?.length > 0) {
+      await supabase.from('event_attendees').insert(
+        profiles.map(p => ({
+          event_id: event.id,
+          profile_id: p.id,
+          user_id: p.user_id || null,
+          status: 'accepted',
+        }))
+      )
+    }
   }
 
   return NextResponse.json({ event }, { status: 201 });

@@ -20,11 +20,11 @@ import { Label } from "@/components/ui/label"
 import { DateTimePicker, DatePicker } from "@/components/ui/date-time-picker"
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 import RecurrenceSelector from "@/components/ui/recurrence-selector"
-import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, RepeatIcon, Utensils, ClipboardList } from 'lucide-react';
+import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, RepeatIcon, Utensils, ClipboardList, Users } from 'lucide-react';
 import { Calendar as CalendarIconView, List, Clock, Settings as SettingsIcon } from 'lucide-react';
 import SearchBar from '@/components/SearchBar';
 
-export default function CalendarView({ events, calendars }) {
+export default function CalendarView({ events, calendars, householdProfiles = [] }) {
   const calendarRef = useRef(null);
   const router = useRouter();
   const [view, setView] = useState('dayGridMonth');
@@ -156,6 +156,7 @@ export default function CalendarView({ events, calendars }) {
   const [editEndDate, setEditEndDate] = useState(null);
   const [editIsAllDay, setEditIsAllDay] = useState(false);
   const [editRecurrenceRule, setEditRecurrenceRule] = useState(null);
+  const [editAttendees, setEditAttendees] = useState([]); // profile IDs
 
   // Filter events based on search and visible calendars
   const filteredEvents = useMemo(() => {
@@ -234,6 +235,7 @@ export default function CalendarView({ events, calendars }) {
       calendarName: event.calendar?.name,
       calendarId: event.calendar_id,
       recurrenceRule: event.recurrence_rule,
+      attendees: event.attendees || [],
     }
   }))
 
@@ -288,6 +290,7 @@ export default function CalendarView({ events, calendars }) {
       calendarId: props.calendarId,
       color: event.backgroundColor,
       recurrenceRule: props.recurrenceRule,
+      attendees: props.attendees || [],
     };
     
     setSelectedEvent(eventData);
@@ -303,6 +306,7 @@ export default function CalendarView({ events, calendars }) {
     setEditEndDate(event.end ? new Date(event.end) : null);
     setEditIsAllDay(event.allDay || false);
     setEditRecurrenceRule(props.recurrenceRule || null);
+    setEditAttendees((props.attendees || []).map(a => a.profile_id).filter(Boolean));
     
     setIsModalOpen(true);
   };
@@ -322,6 +326,7 @@ export default function CalendarView({ events, calendars }) {
     setEditEndDate(selectedEvent.end ? new Date(selectedEvent.end) : null);
     setEditIsAllDay(selectedEvent.allDay || false);
     setEditRecurrenceRule(selectedEvent.recurrenceRule || null);
+    setEditAttendees((selectedEvent.attendees || []).map(a => a.profile_id).filter(Boolean));
     setIsEditMode(false);
   };
 
@@ -348,6 +353,7 @@ export default function CalendarView({ events, calendars }) {
         all_day: editIsAllDay,
         location: editForm.location,
         recurrence_rule: editRecurrenceRule,
+        attendee_profile_ids: editAttendees,
       };
 
       const res = await fetch(`/api/events/${selectedEvent.id}`, {
@@ -993,6 +999,25 @@ export default function CalendarView({ events, calendars }) {
                   </div>
                 </div>
               )}
+
+              {selectedEvent?.attendees?.length > 0 && (
+                <div className="flex items-start gap-3">
+                  <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">Assigned to</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {selectedEvent.attendees.map(a => {
+                        const profile = householdProfiles.find(p => p.id === a.profile_id)
+                        return profile ? (
+                          <span key={a.profile_id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                            {profile.name}
+                          </span>
+                        ) : null
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             // Edit Mode
@@ -1093,6 +1118,38 @@ export default function CalendarView({ events, calendars }) {
                 onChange={setEditRecurrenceRule}
                 startDate={editStartDate}
               />
+
+              {householdProfiles.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Assign to</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {householdProfiles.map(profile => (
+                      <label
+                        key={profile.id}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm cursor-pointer border transition-colors select-none ${
+                          editAttendees.includes(profile.id)
+                            ? 'bg-blue-100 text-blue-700 border-blue-300'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editAttendees.includes(profile.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditAttendees(prev => [...prev, profile.id])
+                            } else {
+                              setEditAttendees(prev => prev.filter(id => id !== profile.id))
+                            }
+                          }}
+                          className="sr-only"
+                        />
+                        {profile.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -44,7 +44,7 @@ export async function PUT(request, { params }) {
 
   const { id } = await params;
   const body = await request.json();
-  const { title, description, start_time, end_time, all_day, location } = body;
+  const { title, description, start_time, end_time, all_day, location, recurrence_rule, attendee_profile_ids } = body;
 
   // Update event
   const { data: event, error } = await supabase
@@ -56,6 +56,7 @@ export async function PUT(request, { params }) {
       end_time,
       all_day,
       location,
+      recurrence_rule: recurrence_rule ?? null,
     })
     .eq('id', id)
     .select()
@@ -64,6 +65,29 @@ export async function PUT(request, { params }) {
   if (error) {
     console.error('Error updating event:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Sync attendees if provided (replace all)
+  if (attendee_profile_ids !== undefined) {
+    await supabase.from('event_attendees').delete().eq('event_id', id)
+
+    if (attendee_profile_ids.length > 0) {
+      const { data: profiles } = await supabase
+        .from('household_profiles')
+        .select('id, user_id')
+        .in('id', attendee_profile_ids)
+
+      if (profiles?.length > 0) {
+        await supabase.from('event_attendees').insert(
+          profiles.map(p => ({
+            event_id: id,
+            profile_id: p.id,
+            user_id: p.user_id || null,
+            status: 'accepted',
+          }))
+        )
+      }
+    }
   }
 
   return NextResponse.json({ event });

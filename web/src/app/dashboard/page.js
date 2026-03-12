@@ -57,12 +57,20 @@ export default async function DashboardPage() {
   // Get visible calendar IDs
   const visibleCalendarIds = calendars?.filter(c => c.visible !== false).map(c => c.id) || []
 
-  // Fetch events only from visible calendars
+  // Fetch household profiles for event assignment
+  const { data: householdProfiles } = await supabase
+    .from('household_profiles')
+    .select('id, name, user_id, is_auth_user, color, avatar_url')
+    .eq('household_id', membership.household_id)
+    .order('name')
+
+  // Fetch events only from visible calendars, including attendees
   const { data: events } = await supabase
     .from('events')
     .select(`
       *,
-      calendar:calendars(id, name, color, type)
+      calendar:calendars(id, name, color, type),
+      attendees:event_attendees(profile_id, user_id, status)
     `)
     .in('calendar_id', visibleCalendarIds.length > 0 ? visibleCalendarIds : ['00000000-0000-0000-0000-000000000000']) // Use impossible ID if no visible calendars
     .order('start_time', { ascending: true })
@@ -74,6 +82,7 @@ export default async function DashboardPage() {
       calendars={calendars || []}
       events={events || []}
       membershipRole={membership.role}
+      householdProfiles={householdProfiles || []}
     />
   )
 }
