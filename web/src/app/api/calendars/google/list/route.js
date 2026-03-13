@@ -71,7 +71,7 @@ export async function GET(request) {
       })),
     })
   } catch (error) {
-    console.error('Error fetching Google calendars:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error fetching Google calendars:', error?.message, error?.response?.data)
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 })
   }
 }

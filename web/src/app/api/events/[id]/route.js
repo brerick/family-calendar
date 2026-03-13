@@ -92,6 +92,7 @@ export async function PUT(request, { params }) {
   }
 
   // Push update to Google Calendar if this event is linked to one
+  let googleSyncWarning = null;
   if (event.external_event_id) {
     const { data: calendar } = await supabase
       .from('calendars')
@@ -107,12 +108,18 @@ export async function PUT(request, { params }) {
           requestBody: buildGoogleEventBody(event),
         });
       } catch (googleErr) {
+        const status = googleErr?.response?.status;
         console.error('[Google Push] Failed to update event in Google:', googleErr.message);
+        if (status === 401 || status === 403) {
+          googleSyncWarning = 'reconnect'; // OAuth token lacks write permission
+        } else {
+          googleSyncWarning = 'error';
+        }
       }
     }
   }
 
-  return NextResponse.json({ event });
+  return NextResponse.json({ event, googleSyncWarning });
 }
 
 // PATCH /api/events/[id] - Update an event (alias for PUT)

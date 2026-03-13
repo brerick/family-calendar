@@ -372,9 +372,16 @@ export default function CalendarView({ events, calendars, householdProfiles = []
         throw new Error('Failed to update event');
       }
 
+      const data = await res.json();
       setIsModalOpen(false);
       setIsEditMode(false);
-      toast.success('Event updated');
+      if (data.googleSyncWarning === 'reconnect') {
+        toast.warning('Event saved, but Google Calendar sync failed — please reconnect Google Calendar in your settings.', { duration: 8000 });
+      } else if (data.googleSyncWarning === 'error') {
+        toast.warning('Event saved locally, but failed to update in Google Calendar.');
+      } else {
+        toast.success('Event updated');
+      }
       router.refresh();
     } catch (error) {
       console.error('Error updating event:', error);
@@ -441,7 +448,14 @@ export default function CalendarView({ events, calendars, householdProfiles = []
         throw new Error('Failed to update event');
       }
 
-      toast.success('Event rescheduled');
+      const data = await res.json();
+      if (data.googleSyncWarning === 'reconnect') {
+        toast.warning('Event rescheduled, but Google Calendar sync failed — please reconnect Google Calendar.', { duration: 8000 });
+      } else if (data.googleSyncWarning === 'error') {
+        toast.warning('Event rescheduled locally, but failed to update in Google Calendar.');
+      } else {
+        toast.success('Event rescheduled');
+      }
       router.refresh();
     } catch (error) {
       console.error('Error updating event:', error);

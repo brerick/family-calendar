@@ -72,8 +72,8 @@ export function buildGoogleEventBody({ title, description, location, start_time,
     body.start = { date: startDate }
     body.end = { date: endDate }
   } else {
-    body.start = { dateTime: start_time }
-    body.end = { dateTime: end_time || start_time }
+    body.start = { dateTime: start_time, timeZone: 'UTC' }
+    body.end = { dateTime: end_time || start_time, timeZone: 'UTC' }
   }
 
   const recurrence = buildGoogleRecurrence(recurrence_rule)

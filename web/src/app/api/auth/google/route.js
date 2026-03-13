@@ -35,7 +35,10 @@ export async function GET() {
     // Generate auth URL
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
-      scope: ['https://www.googleapis.com/auth/calendar.events'],
+      scope: [
+        'https://www.googleapis.com/auth/calendar.events',
+        'https://www.googleapis.com/auth/calendar.readonly',
+      ],
       state: JSON.stringify({
         user_id: user.id,
         household_id: membership.household_id,
