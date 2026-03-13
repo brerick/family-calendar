@@ -1,20 +1,24 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Utensils, ChefHat, Clock, User } from 'lucide-react'
+import { Plus, Trash2, Utensils, ChefHat, User, Pencil } from 'lucide-react'
+import { toast } from 'sonner'
+
+const EMPTY_FORM = {
+  date: '',
+  meal_type: 'dinner',
+  title: '',
+  description: '',
+  assigned_to_profile_id: null
+}
 
 export default function MealPlanner({ householdProfiles = [] }) {
   const [meals, setMeals] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedWeek, setSelectedWeek] = useState(new Date())
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    date: '',
-    meal_type: 'dinner',
-    title: '',
-    description: '',
-    assigned_to_profile_id: null
-  })
+  const [editingMeal, setEditingMeal] = useState(null) // null = create, object = edit
+  const [formData, setFormData] = useState(EMPTY_FORM)
 
   useEffect(() => {
     fetchMeals()
@@ -54,21 +58,86 @@ export default function MealPlanner({ householdProfiles = [] }) {
         setIsModalOpen(false)
         resetForm()
         fetchMeals()
+        toast.success('Meal planned')
+      } else {
+        toast.error('Failed to add meal')
       }
     } catch (error) {
       console.error('Error creating meal:', error)
+      toast.error('Failed to add meal')
     }
   }
 
-  const resetForm = () => {
-    setFormData({
-      date: '',
-      meal_type: 'dinner',
-      title: '',
-      description: '',
-      assigned_to_profile_id: null
+  const handleEditMeal = async (e) => {
+    e.preventDefault()
+    try {
+      const response = await fetch(`/api/meals/${editingMeal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      if (response.ok) {
+        setIsModalOpen(false)
+        setEditingMeal(null)
+        resetForm()
+        fetchMeals()
+        toast.success('Meal updated')
+      } else {
+        toast.error('Failed to update meal')
+      }
+    } catch (error) {
+      console.error('Error updating meal:', error)
+      toast.error('Failed to update meal')
+    }
+  }
+
+  const handleDeleteMeal = (meal) => {
+    toast(`Delete "${meal.title}"?`, {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            const response = await fetch(`/api/meals/${meal.id}`, { method: 'DELETE' })
+            if (response.ok) {
+              fetchMeals()
+              toast.success('Meal removed')
+            } else {
+              toast.error('Failed to remove meal')
+            }
+          } catch (error) {
+            console.error('Error deleting meal:', error)
+            toast.error('Failed to remove meal')
+          }
+        },
+      },
+      cancel: { label: 'Cancel' },
     })
   }
+
+  const resetForm = () => {
+    setFormData(EMPTY_FORM)
+  }
+
+  const openCreateModal = (date = '') => {
+    setEditingMeal(null)
+    setFormData({ ...EMPTY_FORM, date })
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (meal) => {
+    setEditingMeal(meal)
+    setFormData({
+      date: meal.date || '',
+      meal_type: meal.meal_type || 'dinner',
+      title: meal.title || '',
+      description: meal.description || '',
+      assigned_to_profile_id: meal.assigned_to_profile_id || null,
+    })
+    setIsModalOpen(true)
+  }
+
+  const goToToday = () => setSelectedWeek(new Date())
 
   const getWeekStart = (date) => {
     const d = new Date(date)
@@ -118,10 +187,7 @@ export default function MealPlanner({ householdProfiles = [] }) {
             <h2 className="text-2xl font-bold">Meal Planner</h2>
           </div>
           <button
-            onClick={() => {
-              resetForm()
-              setIsModalOpen(true)
-            }}
+            onClick={() => openCreateModal()}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             <Plus className="h-4 w-4" />
@@ -140,6 +206,12 @@ export default function MealPlanner({ householdProfiles = [] }) {
             className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
           >
             ← Previous Week
+          </button>
+          <button
+            onClick={goToToday}
+            className="px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded-md hover:bg-blue-50"
+          >
+            Today
           </button>
           <span className="font-medium">
             {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {' '}
@@ -172,7 +244,8 @@ export default function MealPlanner({ householdProfiles = [] }) {
             return (
               <div
                 key={date.toISOString()}
-                className={`bg-white rounded-lg shadow p-4 ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                className={`bg-white rounded-lg shadow p-4 cursor-pointer hover:ring-1 hover:ring-blue-300 transition-all ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                onClick={() => openCreateModal(date.toISOString().split('T')[0])}
               >
                 <div className="text-center mb-3">
                   <div className="text-sm font-medium text-gray-600">
@@ -192,9 +265,9 @@ export default function MealPlanner({ householdProfiles = [] }) {
                     dayMeals.map((meal) => (
                       <div
                         key={meal.id}
-                        className="p-2 bg-gray-50 rounded border border-gray-200 text-xs"
+                        className="p-2 bg-gray-50 rounded border border-gray-200 text-xs group relative"
                       >
-                        <div className="font-medium text-gray-700 mb-1">{meal.title}</div>
+                        <div className="font-medium text-gray-700 mb-1 pr-10">{meal.title}</div>
                         <div className="flex items-center gap-1 text-gray-500">
                           <ChefHat className="h-3 w-3" />
                           {getMealTypeLabel(meal.meal_type)}
@@ -205,6 +278,23 @@ export default function MealPlanner({ householdProfiles = [] }) {
                             {getProfileName(meal.assigned_to_profile_id)}
                           </div>
                         )}
+                        {/* Edit/delete buttons */}
+                        <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEditModal(meal); }}
+                            className="p-0.5 text-gray-400 hover:text-blue-600 rounded"
+                            title="Edit meal"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteMeal(meal); }}
+                            className="p-0.5 text-gray-400 hover:text-red-600 rounded"
+                            title="Delete meal"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -215,12 +305,15 @@ export default function MealPlanner({ householdProfiles = [] }) {
         </div>
       )}
 
-      {/* Add Meal Modal */}
+      {/* Add / Edit Meal Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4">Add Meal</h3>
-            <form onSubmit={handleCreateMeal} className="space-y-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">{editingMeal ? 'Edit Meal' : 'Add Meal'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <form onSubmit={editingMeal ? handleEditMeal : handleCreateMeal} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Date *</label>
                 <input
@@ -269,12 +362,26 @@ export default function MealPlanner({ householdProfiles = [] }) {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium mb-1">Assign To</label>
+                <select
+                  value={formData.assigned_to_profile_id || ''}
+                  onChange={(e) => setFormData({ ...formData, assigned_to_profile_id: e.target.value || null })}
+                  className="w-full px-3 py-2 border rounded-md"
+                >
+                  <option value="">Unassigned</option>
+                  {householdProfiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>{profile.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
-                  Add Meal
+                  {editingMeal ? 'Save Changes' : 'Add Meal'}
                 </button>
                 <button
                   type="button"

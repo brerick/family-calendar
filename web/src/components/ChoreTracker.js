@@ -1,21 +1,25 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, CheckCircle, Circle, Trash2, User, Calendar, Award } from 'lucide-react'
+import { Plus, CheckCircle, Circle, Trash2, User, Calendar, Award, Pencil } from 'lucide-react'
+import { toast } from 'sonner'
+
+const EMPTY_FORM = {
+  title: '',
+  description: '',
+  assigned_to_profile_id: '',
+  due_date: '',
+  category: 'cleaning',
+  points: 0
+}
 
 export default function ChoreTracker({ householdProfiles = [] }) {
   const [chores, setChores] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('incomplete')
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    assigned_to_profile_id: '',
-    due_date: '',
-    category: 'cleaning',
-    points: 0
-  })
+  const [editingChore, setEditingChore] = useState(null) // null = create, object = edit
+  const [formData, setFormData] = useState(EMPTY_FORM)
 
   useEffect(() => {
     fetchChores()
@@ -52,9 +56,37 @@ export default function ChoreTracker({ householdProfiles = [] }) {
         setIsModalOpen(false)
         resetForm()
         fetchChores()
+        toast.success('Chore added')
+      } else {
+        toast.error('Failed to add chore')
       }
     } catch (error) {
       console.error('Error creating chore:', error)
+      toast.error('Failed to add chore')
+    }
+  }
+
+  const handleEditChore = async (e) => {
+    e.preventDefault()
+    try {
+      const response = await fetch(`/api/chores/${editingChore.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      if (response.ok) {
+        setIsModalOpen(false)
+        setEditingChore(null)
+        resetForm()
+        fetchChores()
+        toast.success('Chore updated')
+      } else {
+        toast.error('Failed to update chore')
+      }
+    } catch (error) {
+      console.error('Error updating chore:', error)
+      toast.error('Failed to update chore')
     }
   }
 
@@ -68,37 +100,58 @@ export default function ChoreTracker({ householdProfiles = [] }) {
 
       if (response.ok) {
         fetchChores()
+        toast.success(chore.completed ? 'Marked incomplete' : 'Chore completed! 🎉')
       }
     } catch (error) {
       console.error('Error updating chore:', error)
+      toast.error('Failed to update chore')
     }
   }
 
-  const handleDeleteChore = async (id) => {
-    if (!confirm('Are you sure you want to delete this chore?')) return
-
-    try {
-      const response = await fetch(`/api/chores/${id}`, {
-        method: 'DELETE'
-      })
-
-      if (response.ok) {
-        fetchChores()
-      }
-    } catch (error) {
-      console.error('Error deleting chore:', error)
-    }
+  const handleDeleteChore = async (id, title) => {
+    toast(`Delete "${title}"?`, {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            const response = await fetch(`/api/chores/${id}`, { method: 'DELETE' })
+            if (response.ok) {
+              fetchChores()
+              toast.success('Chore deleted')
+            } else {
+              toast.error('Failed to delete chore')
+            }
+          } catch (error) {
+            console.error('Error deleting chore:', error)
+            toast.error('Failed to delete chore')
+          }
+        },
+      },
+      cancel: { label: 'Cancel' },
+    })
   }
 
   const resetForm = () => {
+    setFormData(EMPTY_FORM)
+  }
+
+  const openCreateModal = () => {
+    setEditingChore(null)
+    resetForm()
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (chore) => {
+    setEditingChore(chore)
     setFormData({
-      title: '',
-      description: '',
-      assigned_to_profile_id: '',
-      due_date: '',
-      category: 'cleaning',
-      points: 0
+      title: chore.title || '',
+      description: chore.description || '',
+      assigned_to_profile_id: chore.assigned_to_profile_id || '',
+      due_date: chore.due_date || '',
+      category: chore.category || 'cleaning',
+      points: chore.points || 0,
     })
+    setIsModalOpen(true)
   }
 
   const getProfileName = (profileId) => {
@@ -140,10 +193,7 @@ export default function ChoreTracker({ householdProfiles = [] }) {
             <p className="text-sm text-gray-600">Assign and track household chores</p>
           </div>
           <button
-            onClick={() => {
-              resetForm()
-              setIsModalOpen(true)
-            }}
+            onClick={openCreateModal}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             <Plus className="h-4 w-4" />
@@ -273,7 +323,14 @@ export default function ChoreTracker({ householdProfiles = [] }) {
               </div>
 
               <button
-                onClick={() => handleDeleteChore(chore.id)}
+                onClick={() => openEditModal(chore)}
+                className="flex-shrink-0 text-gray-400 hover:text-blue-600"
+                title="Edit chore"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => handleDeleteChore(chore.id, chore.title)}
                 className="flex-shrink-0 text-gray-400 hover:text-red-600"
               >
                 <Trash2 className="h-5 w-5" />
@@ -283,12 +340,17 @@ export default function ChoreTracker({ householdProfiles = [] }) {
         </div>
       )}
 
-      {/* Add Chore Modal */}
+      {/* Add / Edit Chore Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4">Add Chore</h3>
-            <form onSubmit={handleCreateChore} className="space-y-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">{editingChore ? 'Edit Chore' : 'Add Chore'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                ✕
+              </button>
+            </div>
+            <form onSubmit={editingChore ? handleEditChore : handleCreateChore} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Chore Title *</label>
                 <input
@@ -372,7 +434,7 @@ export default function ChoreTracker({ householdProfiles = [] }) {
                   type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
-                  Add Chore
+                  {editingChore ? 'Save Changes' : 'Add Chore'}
                 </button>
                 <button
                   type="button"

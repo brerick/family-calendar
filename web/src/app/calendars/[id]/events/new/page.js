@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DateTimePicker, DatePicker } from '@/components/ui/date-time-picker';
@@ -26,6 +26,20 @@ export default function NewEventPage({ params }) {
   const [endDate, setEndDate] = useState(null);
   const [isAllDay, setIsAllDay] = useState(false);
   const [recurrenceRule, setRecurrenceRule] = useState(null);
+  const submittedRef = useRef(false);
+
+  // Warn user if they try to leave with unsaved changes
+  const isDirty = formData.title || formData.description || formData.location || startDate;
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty && !submittedRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   // Unwrap params
   useEffect(() => {
@@ -73,6 +87,7 @@ export default function NewEventPage({ params }) {
         throw new Error(data.error || 'Failed to create event');
       }
 
+      submittedRef.current = true;
       router.push('/dashboard');
     } catch (err) {
       setError(err.message);

@@ -2,28 +2,30 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function EventsList({ events: initialEvents, calendars }) {
   const [events, setEvents] = useState(initialEvents);
   const router = useRouter();
 
-  const handleDelete = async (eventId) => {
-    if (!confirm('Are you sure you want to delete this event?')) return;
-
-    try {
-      const res = await fetch(`/api/events/${eventId}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to delete event');
-      }
-
-      setEvents(events.filter(e => e.id !== eventId));
-    } catch (error) {
-      console.error('Error deleting event:', error);
-      alert('Failed to delete event');
-    }
+  const handleDelete = async (eventId, eventTitle) => {
+    toast(`Delete "${eventTitle}"?`, {
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            const res = await fetch(`/api/events/${eventId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Failed to delete event');
+            setEvents(events.filter(e => e.id !== eventId));
+            toast.success('Event deleted');
+          } catch (error) {
+            console.error('Error deleting event:', error);
+            toast.error('Failed to delete event');
+          }
+        },
+      },
+      cancel: { label: 'Cancel' },
+    });
   };
 
   const formatDate = (dateString, allDay) => {
@@ -121,8 +123,8 @@ export default function EventsList({ events: initialEvents, calendars }) {
                     </div>
                     
                     <button
-                      onClick={() => handleDelete(event.id)}
-                      className="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity ml-2"
+                      onClick={() => handleDelete(event.id, event.title)}
+                      className="text-gray-400 hover:text-red-600 flex-shrink-0 ml-2"
                       title="Delete event"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

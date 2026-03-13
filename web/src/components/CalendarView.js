@@ -20,9 +20,10 @@ import { Label } from "@/components/ui/label"
 import { DateTimePicker, DatePicker } from "@/components/ui/date-time-picker"
 import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 import RecurrenceSelector from "@/components/ui/recurrence-selector"
-import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, RepeatIcon, Utensils, ClipboardList, Users } from 'lucide-react';
+import { CalendarIcon, MapPinIcon, Trash2Icon, PencilIcon, SaveIcon, XIcon, RepeatIcon, Utensils, ClipboardList, Users, ExternalLink } from 'lucide-react';
 import { Calendar as CalendarIconView, List, Clock, Settings as SettingsIcon } from 'lucide-react';
 import SearchBar from '@/components/SearchBar';
+import { toast } from 'sonner';
 
 export default function CalendarView({ events, calendars, householdProfiles = [] }) {
   const calendarRef = useRef(null);
@@ -45,6 +46,11 @@ export default function CalendarView({ events, calendars, householdProfiles = []
   // Quick create modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createDate, setCreateDate] = useState(null);
+  const [createCalendarId, setCreateCalendarId] = useState('');
+
+  // Drag-drop pending confirmation state
+  const [pendingDrop, setPendingDrop] = useState(null); // { info }
+  const [isDropConfirmOpen, setIsDropConfirmOpen] = useState(false);
   
   // Search filter state
   const [filters, setFilters] = useState({ searchQuery: '' });
@@ -333,13 +339,12 @@ export default function CalendarView({ events, calendars, householdProfiles = []
 
   const handleSaveEdit = async () => {
     if (!editForm.title || !editStartDate) {
-      alert('Please fill in required fields');
+      toast.error('Please fill in required fields');
       return;
     }
 
-    // Validate end time is not before start time
     if (editEndDate && editEndDate < editStartDate) {
-      alert('End time cannot be before start time');
+      toast.error('End time cannot be before start time');
       return;
     }
 
@@ -369,10 +374,11 @@ export default function CalendarView({ events, calendars, householdProfiles = []
 
       setIsModalOpen(false);
       setIsEditMode(false);
+      toast.success('Event updated');
       router.refresh();
     } catch (error) {
       console.error('Error updating event:', error);
-      alert('Failed to update event');
+      toast.error('Failed to update event');
     } finally {
       setSaving(false);
     }
@@ -388,10 +394,11 @@ export default function CalendarView({ events, calendars, householdProfiles = []
         throw new Error('Failed to delete event');
       }
 
+      toast.success('Event deleted');
       router.refresh();
     } catch (error) {
       console.error('Error deleting event:', error);
-      alert('Failed to delete event');
+      toast.error('Failed to delete event');
     }
   };
 
@@ -404,7 +411,15 @@ export default function CalendarView({ events, calendars, householdProfiles = []
   };
 
   const handleEventDrop = async (info) => {
-    // Handle drag and drop rescheduling
+    // Show confirmation before saving the drop
+    setPendingDrop({ info });
+    setIsDropConfirmOpen(true);
+  };
+
+  const commitEventDrop = async () => {
+    const { info } = pendingDrop;
+    setIsDropConfirmOpen(false);
+    setPendingDrop(null);
     try {
       const eventData = {
         title: info.event.title,
@@ -422,14 +437,15 @@ export default function CalendarView({ events, calendars, householdProfiles = []
       });
 
       if (!res.ok) {
-        info.revert(); // Revert the drag if save fails
+        info.revert();
         throw new Error('Failed to update event');
       }
 
+      toast.success('Event rescheduled');
       router.refresh();
     } catch (error) {
       console.error('Error updating event:', error);
-      alert('Failed to reschedule event');
+      toast.error('Failed to reschedule event');
     }
   };
 
@@ -1173,10 +1189,16 @@ export default function CalendarView({ events, calendars, householdProfiles = []
                 <Button 
                   variant="destructive"
                   onClick={() => {
-                    if (confirm('Are you sure you want to delete this event?')) {
-                      handleDeleteEvent(selectedEvent.id);
-                      setIsModalOpen(false);
-                    }
+                    toast(`Delete "${selectedEvent.title}"?`, {
+                      action: {
+                        label: 'Delete',
+                        onClick: () => {
+                          handleDeleteEvent(selectedEvent.id);
+                          setIsModalOpen(false);
+                        },
+                      },
+                      cancel: { label: 'Cancel' },
+                    });
                   }}
                 >
                   <Trash2Icon className="h-4 w-4 mr-2" />
@@ -1207,8 +1229,45 @@ export default function CalendarView({ events, calendars, householdProfiles = []
         </DialogContent>
       </Dialog>
 
+      {/* Drag-drop confirmation dialog */}
+      <Dialog open={isDropConfirmOpen} onOpenChange={(open) => {
+        if (!open && pendingDrop) {
+          pendingDrop.info.revert();
+          setPendingDrop(null);
+        }
+        setIsDropConfirmOpen(open);
+      }}>
+        <DialogContent className="sm:max-w-[400px] max-w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>Move Event?</DialogTitle>
+            <DialogDescription>
+              {pendingDrop && (
+                <>Move <strong>{pendingDrop.info.event.title}</strong> to {pendingDrop.info.event.start.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}?</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => {
+              if (pendingDrop) pendingDrop.info.revert();
+              setPendingDrop(null);
+              setIsDropConfirmOpen(false);
+            }}>
+              Cancel
+            </Button>
+            <Button variant="default" onClick={commitEventDrop}>
+              Move Event
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Quick Create Modal */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+      <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
+        setIsCreateModalOpen(open);
+        if (open && calendars?.length > 0) {
+          setCreateCalendarId(calendars.find(c => c.visible !== false)?.id || calendars[0]?.id || '');
+        }
+      }}>
         <DialogContent className="sm:max-w-[500px] max-w-[95vw] p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl">Quick Create Event</DialogTitle>
@@ -1223,25 +1282,23 @@ export default function CalendarView({ events, calendars, householdProfiles = []
             const title = formData.get('title');
             
             if (!title || !createDate) {
-              alert('Please enter an event title');
+              toast.error('Please enter an event title');
               return;
             }
 
-            // Get the first visible calendar
-            const targetCalendar = calendars?.find(c => c.visible !== false);
-            if (!targetCalendar) {
-              alert('No calendar available');
+            if (!createCalendarId) {
+              toast.error('No calendar available');
               return;
             }
 
             setSaving(true);
             try {
               const eventData = {
-                calendar_id: targetCalendar.id,
+                calendar_id: createCalendarId,
                 title,
                 description: '',
                 start_time: createDate.toISOString(),
-                end_time: new Date(createDate.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour later
+                end_time: new Date(createDate.getTime() + 60 * 60 * 1000).toISOString(),
                 all_day: false,
                 location: '',
               };
@@ -1256,11 +1313,12 @@ export default function CalendarView({ events, calendars, householdProfiles = []
                 throw new Error('Failed to create event');
               }
 
+              toast.success('Event created');
               setIsCreateModalOpen(false);
               router.refresh();
             } catch (error) {
               console.error('Error creating event:', error);
-              alert('Failed to create event');
+              toast.error('Failed to create event');
             } finally {
               setSaving(false);
             }
@@ -1277,6 +1335,35 @@ export default function CalendarView({ events, calendars, householdProfiles = []
                 placeholder="Team Meeting"
               />
             </div>
+
+            {calendars && calendars.length > 1 && (
+              <div className="space-y-2">
+                <Label htmlFor="quick-calendar">Calendar</Label>
+                <select
+                  id="quick-calendar"
+                  value={createCalendarId}
+                  onChange={(e) => setCreateCalendarId(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md text-sm"
+                >
+                  {calendars.filter(c => c.visible !== false).map(cal => (
+                    <option key={cal.id} value={cal.id}>{cal.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {createCalendarId && (
+              <p className="text-xs text-gray-500">
+                Want to add more details?{' '}
+                <a
+                  href={`/calendars/${createCalendarId}/events/new`}
+                  className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                  onClick={() => setIsCreateModalOpen(false)}
+                >
+                  Open full form <ExternalLink className="h-3 w-3" />
+                </a>
+              </p>
+            )}
 
             <DialogFooter className="gap-2">
               <Button 

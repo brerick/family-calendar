@@ -1,18 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, User, Users, Baby, UserPlus } from 'lucide-react'
+import { Plus, Edit, Trash2, User, Users, Baby, UserPlus, Pencil, X } from 'lucide-react'
+import { toast } from 'sonner'
+
+const EMPTY_FORM = { name: '', birth_date: '', relationship: '', color: '#3B82F6' }
 
 export default function HouseholdProfilesManager({ onUpdate }) {
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    name: '',
-    birth_date: '',
-    relationship: '',
-    color: '#3B82F6'
-  })
+  const [editingProfile, setEditingProfile] = useState(null)
+  const [formData, setFormData] = useState(EMPTY_FORM)
 
   useEffect(() => {
     fetchProfiles()
@@ -33,29 +32,49 @@ export default function HouseholdProfilesManager({ onUpdate }) {
     }
   }
 
-  const handleCreateProfile = async (e) => {
+  const handleSubmitProfile = async (e) => {
     e.preventDefault()
     try {
-      const response = await fetch('/api/household/profiles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
+      let response
+      if (editingProfile) {
+        response = await fetch(`/api/household/profiles/${editingProfile.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        })
+      } else {
+        response = await fetch('/api/household/profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        })
+      }
 
       if (response.ok) {
         setIsModalOpen(false)
+        setEditingProfile(null)
         resetForm()
         await fetchProfiles()
-        onUpdate?.() // Notify parent to refresh
+        onUpdate?.()
+        toast.success(editingProfile ? 'Profile updated' : 'Member added')
+      } else {
+        const err = await response.json()
+        toast.error(err.error || 'Failed to save profile')
       }
     } catch (error) {
-      console.error('Error creating profile:', error)
+      console.error('Error saving profile:', error)
+      toast.error('Failed to save profile')
     }
   }
 
-  const handleDeleteProfile = async (id) => {
-    if (!confirm('Are you sure you want to remove this household member?')) return
+  const handleDeleteProfile = (id, name) => {
+    toast(`Remove "${name}" from your household?`, {
+      action: { label: 'Remove', onClick: () => confirmDeleteProfile(id) },
+      cancel: { label: 'Cancel' },
+    })
+  }
 
+  const confirmDeleteProfile = async (id) => {
     try {
       const response = await fetch(`/api/household/profiles/${id}`, {
         method: 'DELETE'
@@ -63,23 +82,35 @@ export default function HouseholdProfilesManager({ onUpdate }) {
 
       if (response.ok) {
         await fetchProfiles()
-        onUpdate?.() // Notify parent to refresh
+        onUpdate?.()
+        toast.success('Member removed')
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to delete profile')
+        toast.error(error.error || 'Failed to delete profile')
       }
     } catch (error) {
       console.error('Error deleting profile:', error)
+      toast.error('Failed to delete profile')
     }
   }
 
-  const resetForm = () => {
+  const resetForm = () => setFormData(EMPTY_FORM)
+
+  const openCreateModal = () => {
+    setEditingProfile(null)
+    resetForm()
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (profile) => {
+    setEditingProfile(profile)
     setFormData({
-      name: '',
-      birth_date: '',
-      relationship: '',
-      color: '#3B82F6'
+      name: profile.name || '',
+      birth_date: profile.birth_date || '',
+      relationship: profile.relationship || '',
+      color: profile.color || '#3B82F6',
     })
+    setIsModalOpen(true)
   }
 
   const getRelationshipIcon = (relationship) => {
@@ -119,10 +150,7 @@ export default function HouseholdProfilesManager({ onUpdate }) {
             <p className="text-sm text-gray-600">Manage who's in your household</p>
           </div>
           <button
-            onClick={() => {
-              resetForm()
-              setIsModalOpen(true)
-            }}
+            onClick={openCreateModal}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             <Plus className="h-4 w-4" />
@@ -164,9 +192,16 @@ export default function HouseholdProfilesManager({ onUpdate }) {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
                         Has Account
                       </span>
+                      <button
+                        onClick={() => openEditModal(profile)}
+                        className="text-gray-400 hover:text-blue-600"
+                        title="Edit profile"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -201,8 +236,16 @@ export default function HouseholdProfilesManager({ onUpdate }) {
                       </p>
                     </div>
                     <button
-                      onClick={() => handleDeleteProfile(profile.id)}
+                      onClick={() => openEditModal(profile)}
+                      className="text-gray-400 hover:text-blue-600"
+                      title="Edit profile"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProfile(profile.id, profile.name)}
                       className="text-gray-400 hover:text-red-600"
+                      title="Remove member"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -232,12 +275,17 @@ export default function HouseholdProfilesManager({ onUpdate }) {
         </>
       )}
 
-      {/* Add Member Modal */}
+      {/* Add / Edit Member Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4">Add Household Member</h3>
-            <form onSubmit={handleCreateProfile} className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">{editingProfile ? 'Edit Member' : 'Add Household Member'}</h3>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitProfile} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Name *</label>
                 <input
@@ -297,7 +345,7 @@ export default function HouseholdProfilesManager({ onUpdate }) {
                   type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
-                  Add Member
+                  {editingProfile ? 'Save Changes' : 'Add Member'}
                 </button>
                 <button
                   type="button"

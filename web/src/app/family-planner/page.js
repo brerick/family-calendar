@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { ClipboardList, Utensils, Calendar, Users } from 'lucide-react'
 import AvailabilityView from '@/components/AvailabilityView'
 import TemplateManager from '@/components/TemplateManager'
@@ -8,9 +9,19 @@ import MealPlanner from '@/components/MealPlanner'
 import ChoreTracker from '@/components/ChoreTracker'
 import HouseholdProfilesManager from '@/components/HouseholdProfilesManager'
 
+const VALID_TABS = ['members', 'availability', 'templates', 'meals', 'chores']
+
 export default function FamilyPlannerPage() {
-  const [activeTab, setActiveTab] = useState('availability')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const initialTab = VALID_TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'availability'
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [householdProfiles, setHouseholdProfiles] = useState([])
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId)
+    router.replace(`/family-planner?tab=${tabId}`, { scroll: false })
+  }
 
   useEffect(() => {
     fetchHouseholdProfiles()
@@ -60,7 +71,7 @@ export default function FamilyPlannerPage() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                       activeTab === tab.id
                         ? 'border-blue-600 text-blue-600'

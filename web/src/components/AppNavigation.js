@@ -14,13 +14,16 @@ import {
   User,
   ChevronDown,
   ChevronRight,
-  Plus
+  Plus,
+  CalendarPlus
 } from 'lucide-react'
 import CalendarList from '@/components/CalendarList'
 
 export default function AppNavigation({ userName, calendars = [], onCalendarUpdate }) {
   const pathname = usePathname()
   const [calendarsExpanded, setCalendarsExpanded] = useState(true)
+
+  const primaryCalendar = calendars.find(c => c.visible !== false) || calendars[0]
 
   const navItems = [
     {
@@ -50,11 +53,17 @@ export default function AppNavigation({ userName, calendars = [], onCalendarUpda
   ]
 
   const quickActions = [
+    ...(primaryCalendar ? [{
+      href: `/calendars/${primaryCalendar.id}/events/new`,
+      icon: CalendarPlus,
+      label: 'Add Event',
+      color: 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+    }] : []),
     {
       href: '/calendars/new',
       icon: Calendar,
       label: 'New Calendar',
-      color: 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+      color: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
     },
     {
       href: '/family-planner?tab=chores',
