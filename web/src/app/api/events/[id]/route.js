@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { getGoogleCalendarAPI, buildGoogleEventBody } from '@/lib/google';
 
 // GET /api/events/[id] - Fetch a single event
 export async function GET(request, { params }) {
@@ -90,6 +91,27 @@ export async function PUT(request, { params }) {
     }
   }
 
+  // Push update to Google Calendar if this event is linked to one
+  if (event.external_event_id) {
+    const { data: calendar } = await supabase
+      .from('calendars')
+      .select('type, external_id, refresh_token')
+      .eq('id', event.calendar_id)
+      .single();
+    if (calendar?.type === 'google' && calendar.refresh_token) {
+      try {
+        const calAPI = getGoogleCalendarAPI(calendar.refresh_token);
+        await calAPI.events.patch({
+          calendarId: calendar.external_id,
+          eventId: event.external_event_id,
+          requestBody: buildGoogleEventBody(event),
+        });
+      } catch (googleErr) {
+        console.error('[Google Push] Failed to update event in Google:', googleErr.message);
+      }
+    }
+  }
+
   return NextResponse.json({ event });
 }
 
@@ -110,7 +132,14 @@ export async function DELETE(request, { params }) {
 
   const { id } = await params;
 
-  // Delete event
+  // Fetch event before deleting so we can remove it from Google too
+  const { data: eventToDelete } = await supabase
+    .from('events')
+    .select('external_event_id, calendar_id, calendar:calendars(type, external_id, refresh_token)')
+    .eq('id', id)
+    .single();
+
+  // Delete event from Supabase
   const { error } = await supabase
     .from('events')
     .delete()
@@ -119,6 +148,22 @@ export async function DELETE(request, { params }) {
   if (error) {
     console.error('Error deleting event:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Remove from Google Calendar if linked
+  if (eventToDelete?.external_event_id && eventToDelete.calendar?.type === 'google' && eventToDelete.calendar.refresh_token) {
+    try {
+      const calAPI = getGoogleCalendarAPI(eventToDelete.calendar.refresh_token);
+      await calAPI.events.delete({
+        calendarId: eventToDelete.calendar.external_id,
+        eventId: eventToDelete.external_event_id,
+      });
+    } catch (googleErr) {
+      // 410 Gone means it was already deleted in Google — that's fine
+      if (googleErr?.response?.status !== 410) {
+        console.error('[Google Push] Failed to delete event from Google:', googleErr.message);
+      }
+    }
   }
 
   return NextResponse.json({ success: true });
