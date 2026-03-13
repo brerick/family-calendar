@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { ClipboardList, Utensils, Calendar, Users } from 'lucide-react'
 import AvailabilityView from '@/components/AvailabilityView'
@@ -11,7 +11,7 @@ import HouseholdProfilesManager from '@/components/HouseholdProfilesManager'
 
 const VALID_TABS = ['members', 'availability', 'templates', 'meals', 'chores']
 
-export default function FamilyPlannerPage() {
+function FamilyPlannerContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const initialTab = VALID_TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'availability'
@@ -109,3 +109,23 @@ export default function FamilyPlannerPage() {
     </div>
   )
 }
+
+export default function FamilyPlannerPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 animate-pulse">
+        <div className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-6">
+          <div className="h-8 w-48 bg-gray-200 rounded mb-2" />
+          <div className="h-4 w-80 bg-gray-100 rounded" />
+        </div>
+        <div className="px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-white rounded-lg shadow h-12 mb-6" />
+          <div className="bg-white rounded-lg shadow h-64" />
+        </div>
+      </div>
+    }>
+      <FamilyPlannerContent />
+    </Suspense>
+  )
+}
+
