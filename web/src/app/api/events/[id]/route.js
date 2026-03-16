@@ -45,7 +45,44 @@ export async function PUT(request, { params }) {
 
   const { id } = await params;
   const body = await request.json();
-  const { title, description, start_time, end_time, all_day, location, recurrence_rule, attendee_profile_ids } = body;
+  const { title, description, start_time, end_time, all_day, location, recurrence_rule, attendee_profile_ids, edit_scope } = body;
+
+  // For 'all' scope: update every event in the recurring series
+  if (edit_scope === 'all') {
+    const { data: thisEvent } = await supabase
+      .from('events')
+      .select('recurring_event_id, calendar_id')
+      .eq('id', id)
+      .single();
+
+    if (thisEvent?.recurring_event_id) {
+      await supabase
+        .from('events')
+        .update({ title, description, location, all_day, recurrence_rule: recurrence_rule ?? null })
+        .eq('calendar_id', thisEvent.calendar_id)
+        .eq('recurring_event_id', thisEvent.recurring_event_id);
+    }
+    // Fall through to also update this specific event's times
+  }
+
+  // For 'future' scope: mark this and later events as detached from the series
+  if (edit_scope === 'future') {
+    const { data: thisEvent } = await supabase
+      .from('events')
+      .select('recurring_event_id, calendar_id, start_time')
+      .eq('id', id)
+      .single();
+
+    if (thisEvent?.recurring_event_id) {
+      // Remove recurring_event_id from this and all future occurrences so they're treated as independent
+      await supabase
+        .from('events')
+        .update({ recurring_event_id: null, recurrence_rule: recurrence_rule ?? null })
+        .eq('calendar_id', thisEvent.calendar_id)
+        .eq('recurring_event_id', thisEvent.recurring_event_id)
+        .gte('start_time', thisEvent.start_time);
+    }
+  }
 
   // Update event
   const { data: event, error } = await supabase
@@ -112,6 +149,11 @@ export async function PUT(request, { params }) {
         console.error('[Google Push] Failed to update event in Google:', googleErr.message);
         if (status === 401 || status === 403) {
           googleSyncWarning = 'reconnect'; // OAuth token lacks write permission
+          // Flag the calendar so the dashboard banner shows
+          await supabase
+            .from('calendars')
+            .update({ sync_error: 'auth_expired' })
+            .eq('id', event.calendar_id);
         } else {
           googleSyncWarning = 'error';
         }

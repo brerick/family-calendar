@@ -132,7 +132,7 @@ export async function POST(request, { params }) {
           } else if (status === 401 || googleError === 'invalid_grant') {
             // Refresh token revoked or expired — tell the user to reconnect
             console.error('[Google Sync] Google auth invalid (status', status, googleError, '), need reconnect')
-            await supabase.from('calendars').update({ sync_cursor: null }).eq('id', calendarId)
+            await supabase.from('calendars').update({ sync_cursor: null, sync_error: 'auth_expired' }).eq('id', calendarId)
             return NextResponse.json(
               { error: 'Google authorization expired. Please reconnect your Google Calendar.', details: syncTokenError.message },
               { status: 401 }
@@ -165,7 +165,7 @@ export async function POST(request, { params }) {
           console.error('[Google Sync] Full sync error:', status, googleError, fullSyncError.message)
           if (status === 401 || googleError === 'invalid_grant') {
             // Refresh token revoked or expired — clear cursor, tell the user to reconnect
-            await supabase.from('calendars').update({ sync_cursor: null }).eq('id', calendarId)
+            await supabase.from('calendars').update({ sync_cursor: null, sync_error: 'auth_expired' }).eq('id', calendarId)
             return NextResponse.json(
               { error: 'Google authorization expired. Please reconnect your Google Calendar.', details: fullSyncError.message },
               { status: 401 }
@@ -286,12 +286,12 @@ export async function POST(request, { params }) {
       if (nextSyncToken) {
         await supabase
           .from('calendars')
-          .update({ sync_cursor: nextSyncToken, last_synced_at: new Date().toISOString() })
+          .update({ sync_cursor: nextSyncToken, last_synced_at: new Date().toISOString(), sync_error: null })
           .eq('id', calendarId)
       } else {
         await supabase
           .from('calendars')
-          .update({ last_synced_at: new Date().toISOString() })
+          .update({ last_synced_at: new Date().toISOString(), sync_error: null })
           .eq('id', calendarId)
       }
 

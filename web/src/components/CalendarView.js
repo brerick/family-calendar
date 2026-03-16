@@ -51,6 +51,9 @@ export default function CalendarView({ events, calendars, householdProfiles = []
   // Drag-drop pending confirmation state
   const [pendingDrop, setPendingDrop] = useState(null); // { info }
   const [isDropConfirmOpen, setIsDropConfirmOpen] = useState(false);
+
+  // Recurring edit scope prompt state
+  const [isRecurringPromptOpen, setIsRecurringPromptOpen] = useState(false);
   
   // Search filter state
   const [filters, setFilters] = useState({ searchQuery: '' });
@@ -243,6 +246,7 @@ export default function CalendarView({ events, calendars, householdProfiles = []
       recurrenceRule: event.recurrence_rule,
       attendees: event.attendees || [],
       recurringEventId: event.recurring_event_id || null,
+      externalEventId: event.external_event_id || null,
     }
   }))
 
@@ -298,6 +302,8 @@ export default function CalendarView({ events, calendars, householdProfiles = []
       color: event.backgroundColor,
       recurrenceRule: props.recurrenceRule,
       attendees: props.attendees || [],
+      recurringEventId: props.recurringEventId || null,
+      externalEventId: props.externalEventId || null,
     };
     
     setSelectedEvent(eventData);
@@ -337,7 +343,7 @@ export default function CalendarView({ events, calendars, householdProfiles = []
     setIsEditMode(false);
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = async (editScope = 'this') => {
     if (!editForm.title || !editStartDate) {
       toast.error('Please fill in required fields');
       return;
@@ -348,6 +354,18 @@ export default function CalendarView({ events, calendars, householdProfiles = []
       return;
     }
 
+    // For recurring Google events, prompt for scope before saving
+    if (
+      editScope === 'this' &&
+      selectedEvent?.recurringEventId &&
+      selectedEvent?.externalEventId &&
+      !isRecurringPromptOpen
+    ) {
+      setIsRecurringPromptOpen(true);
+      return;
+    }
+
+    setIsRecurringPromptOpen(false);
     setSaving(true);
 
     try {
@@ -360,6 +378,7 @@ export default function CalendarView({ events, calendars, householdProfiles = []
         location: editForm.location,
         recurrence_rule: editRecurrenceRule,
         attendee_profile_ids: editAttendees,
+        edit_scope: editScope,
       };
 
       const res = await fetch(`/api/events/${selectedEvent.id}`, {
@@ -920,7 +939,22 @@ export default function CalendarView({ events, calendars, householdProfiles = []
             minute: '2-digit',
             meridiem: 'short'
           }}
-          eventClassNames="cursor-move"
+          eventContent={(arg) => {
+            const color = arg.event.backgroundColor;
+            const isAllDay = arg.event.allDay;
+            return (
+              <div className="flex items-stretch w-full h-full overflow-hidden rounded-sm cursor-move" style={{ backgroundColor: color }}>
+                <div className="w-1 flex-shrink-0 rounded-l-sm" style={{ backgroundColor: 'rgba(0,0,0,0.25)' }} />
+                <div className="flex-1 px-1 py-0.5 overflow-hidden">
+                  {!isAllDay && arg.timeText && (
+                    <div className="text-[10px] leading-tight font-medium opacity-90 truncate">{arg.timeText}</div>
+                  )}
+                  <div className="text-xs leading-tight font-semibold truncate">{arg.event.title}</div>
+                </div>
+              </div>
+            );
+          }}
+          eventClassNames="!bg-transparent !border-0 !p-0"
           contentHeight="auto"
           handleWindowResize={true}
           slotMinTime={`${String(calendarStartHour).padStart(2, '0')}:00:00`}
@@ -1239,6 +1273,46 @@ export default function CalendarView({ events, calendars, householdProfiles = []
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recurring event edit scope dialog */}
+      <Dialog open={isRecurringPromptOpen} onOpenChange={(open) => {
+        if (!open) setIsRecurringPromptOpen(false);
+      }}>
+        <DialogContent className="sm:max-w-[420px] max-w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>Edit Recurring Event</DialogTitle>
+            <DialogDescription>
+              This event is part of a recurring series. Which events do you want to update?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 py-2">
+            <button
+              className="flex flex-col items-start px-4 py-3 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors text-left"
+              onClick={() => handleSaveEdit('this')}
+            >
+              <span className="font-semibold text-sm">This event</span>
+              <span className="text-xs text-gray-500 mt-0.5">Only update this occurrence</span>
+            </button>
+            <button
+              className="flex flex-col items-start px-4 py-3 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors text-left"
+              onClick={() => handleSaveEdit('future')}
+            >
+              <span className="font-semibold text-sm">This and following events</span>
+              <span className="text-xs text-gray-500 mt-0.5">Update this and all future occurrences</span>
+            </button>
+            <button
+              className="flex flex-col items-start px-4 py-3 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors text-left"
+              onClick={() => handleSaveEdit('all')}
+            >
+              <span className="font-semibold text-sm">All events</span>
+              <span className="text-xs text-gray-500 mt-0.5">Update every occurrence in this series</span>
+            </button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRecurringPromptOpen(false)}>Cancel</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

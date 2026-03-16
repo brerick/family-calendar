@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, AlertTriangle, X } from 'lucide-react';
 import CalendarView from '@/components/CalendarView';
 
 function getLastSyncedAt(calendars) {
@@ -27,6 +27,11 @@ export default function DashboardLayout({ household, user, calendars, events, me
   const [syncing, setSyncing] = useState(false)
   const [lastSynced, setLastSynced] = useState(() => getLastSyncedAt(calendars))
 
+  // Google reconnect banner: show for any google calendar with sync_error set
+  const brokenGoogleCalendars = calendars.filter(c => c.type === 'google' && c.sync_error)
+  const [dismissedReconnect, setDismissedReconnect] = useState(false)
+  const showReconnectBanner = brokenGoogleCalendars.length > 0 && !dismissedReconnect
+
   const handleSyncNow = useCallback(async () => {
     setSyncing(true)
     try {
@@ -43,6 +48,22 @@ export default function DashboardLayout({ household, user, calendars, events, me
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
+      {/* Google reconnect banner */}
+      {showReconnectBanner && (
+        <div className="flex items-center gap-3 px-4 sm:px-6 py-3 bg-amber-50 border-b border-amber-200 text-sm text-amber-800">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500" />
+          <span className="flex-1">
+            <strong>{brokenGoogleCalendars.map(c => c.name).join(', ')}</strong>
+            {brokenGoogleCalendars.length === 1 ? ' needs' : ' need'} to be reconnected — Google authorization has expired.{' '}
+            <Link href="/api/auth/google" className="font-semibold underline hover:text-amber-900">
+              Reconnect now
+            </Link>
+          </span>
+          <button onClick={() => setDismissedReconnect(true)} className="text-amber-500 hover:text-amber-700 flex-shrink-0">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       {hasExternalCalendars && (
         <div className="flex items-center justify-end gap-3 px-4 sm:px-6 py-1.5 bg-white border-b border-gray-100 text-xs text-gray-500">
           {lastSynced ? (
